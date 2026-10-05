@@ -1,5 +1,5 @@
 name: RCSS Crash Diagnostic
-# Include debugger startup errors as well as stack frames.
+# Compare the supplied opponent with a control team on the same server.
 on:
   push:
     branches: [main]
@@ -37,4 +37,6 @@ jobs:
           RELEASE_ID: ${{ inputs.release_id || '404029495' }}
           LD_LIBRARY_PATH: ${{ github.workspace }}/server-debug-install/lib
           RCSSSERVER: ${{ github.workspace }}/server-debug-install/bin/rcssserver
-        run: python3 diagnose.py
+        run: |
+          python3 diagnose.py
+          DIAGNOSTIC_SCENARIO=control python3 diagnose.py

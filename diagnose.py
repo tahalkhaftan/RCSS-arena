@@ -17,11 +17,15 @@ def main():
     source=int(os.environ['RELEASE_ID']); assets=gh.assets(source)
     config=validate(json.loads(gh.read_asset(assets['config.json'])))
     config.update(rounds=1,games_per_round=1)
-    root=Path('diagnostic-data').resolve(); root.mkdir(exist_ok=True)
+    scenario=os.environ.get('DIAGNOSTIC_SCENARIO','uploaded')
+    if scenario=='control':
+        config['right']=dict(config['left'],name='AITech_control',command='./start.sh -h 127.0.0.1 -t AITech_control')
+    root=Path('diagnostic-data-'+scenario).resolve(); root.mkdir(exist_ok=True)
     for side in ('left','right'):
-        extract(gh.read_asset(assets[side+'.zip']),root/'teams'/side)
+        asset='left.zip' if scenario=='control' else side+'.zip'
+        extract(gh.read_asset(assets[asset]),root/'teams'/side)
     wrapper=root/'debug-server.sh'
-    wrapper.write_text('#!/bin/sh\nexec gdb -batch -return-child-result -ex run -ex "thread apply all bt" --args "$RCSS_DEBUG_SERVER" "$@" server::random_seed=1791226771\n')
+    wrapper.write_text('#!/bin/sh\nexec gdb -batch -return-child-result -ex "set startup-with-shell off" -ex run -ex "thread apply all bt" --args "$RCSS_DEBUG_SERVER" "$@"\n')
     wrapper.chmod(0o700)
     os.environ['RCSS_DEBUG_SERVER']=os.environ['RCSSSERVER']
     os.environ['RCSSSERVER']=str(wrapper)
@@ -34,7 +38,7 @@ def main():
     gh.put(release['id'],'diagnostic.zip',(root/'logs.zip').read_bytes(),'application/zip')
     gh.put(release['id'],'results.json',(root/'results.json').read_bytes(),'application/json')
     # Only public server function names and diagnostic categories enter Actions logs.
-    report={'source':source,'diagnostic_release':release['id'],'status':state['status'],'match_errors':[m.get('error') for m in state['matches']],'server_frames':[],'server_setup_errors':[],'team_loader_error':False,'team_intercept_error':False,'team_segfault':False}
+    report={'scenario':scenario,'source':source,'diagnostic_release':release['id'],'status':state['status'],'match_errors':[m.get('error') for m in state['matches']],'server_frames':[],'server_setup_errors':[],'team_loader_error':False,'team_intercept_error':False,'team_segfault':False}
     for p in (root/'logs').rglob('*.log'):
         text=p.read_text(errors='replace')
         if p.name=='server.log':
