@@ -1,0 +1,20 @@
+name: Inspect private match failure
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/inspect.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 inspect_job.py
+        env:
+          STORAGE_TOKEN: ${{ secrets.STORAGE_TOKEN }}
+          STORAGE_REPOSITORY: ${{ vars.STORAGE_REPOSITORY }}
+          RELEASE_ID: '404050602'
