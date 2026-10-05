@@ -1,0 +1,120 @@
+"""Sequential runner for trusted teams on one dedicated RCSS Arena instance."""
+import os
+import signal
+import shutil
+import socket
+import subprocess
+import time
+from pathlib import Path
+from analysis import analyze, summary, sexpr
+
+class Cancelled(Exception): pass
+
+def kill_group(proc):
+    # Kill group even when launcher shell already exited (background players).
+    try: os.killpg(proc.pid,signal.SIGTERM)
+    except ProcessLookupError: return
+    time.sleep(.3)
+    try: os.killpg(proc.pid,signal.SIGKILL)
+    except ProcessLookupError: pass
+    try: proc.wait(timeout=3)
+    except subprocess.TimeoutExpired: pass
+
+def start_team(team,root,log,procs,env):
+    cmd=team['command']
+    for key in ('host','port','coach_port','olcoach_port'):
+        cmd=cmd.replace('{'+key+'}',env['RCSS_'+key.upper()])
+    proc=subprocess.Popen(['/bin/bash','-c',cmd],cwd=root/team['directory'],env=env,
+                          stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+    procs.append(proc)
+
+def run_match(config,teams,folder,cancel):
+    folder.mkdir(parents=True); procs=[]; files=[]
+    env=os.environ.copy(); env.update(RCSS_HOST='127.0.0.1',RCSS_PORT='6000',RCSS_COACH_PORT='6001',RCSS_OLCOACH_PORT='6002')
+    # Dedicated instance: one match uses the standard ports. No public UDP needed.
+    opts={'auto_mode':'true','connect_wait':1000,'kick_off_wait':100,'game_over_wait':20,
+          'nr_normal_halfs':2,'nr_extra_halfs':0,'penalty_shoot_outs':'false',
+          'synch_mode':'true' if config['synch_mode'] else 'false',
+          'game_logging':'true','text_logging':'true','game_log_version':5,
+          'game_log_compression':0,'text_log_compression':0,
+          'game_log_fixed':'true','text_log_fixed':'true','game_log_dated':'false','text_log_dated':'false',
+          'game_log_fixed_name':'match','text_log_fixed_name':'match','game_log_dir':str(folder),'text_log_dir':str(folder),
+          'team_l_start':'','team_r_start':'','port':6000,'coach_port':6001,'olcoach_port':6002}
+    monitor=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); monitor.settimeout(.3)
+    deadline=time.monotonic()+int(os.environ.get('MATCH_TIMEOUT_SECONDS','1800'))
+    try:
+        def launch_log(name):
+            f=open(folder/name,'wb'); files.append(f); return f
+        server=subprocess.Popen([os.environ.get('RCSSSERVER','rcssserver')]+[f'server::{k}={v}' for k,v in opts.items()],
+             cwd=folder,stdout=launch_log('server.log'),stderr=subprocess.STDOUT,start_new_session=True)
+        procs.append(server)
+        # Read-only UDP monitor supplies connection counts, without a graphical monitor.
+        monitor_addr=None
+        def wait_for(side=None,timeout=35):
+            until=time.monotonic()+timeout
+            while time.monotonic()<until:
+                if cancel.is_set(): raise Cancelled()
+                if server.poll() is not None: raise RuntimeError('rcssserver exited while preparing teams; see server.log')
+                if monitor_addr is None: monitor.sendto(b'(dispinit version 4)\0',('127.0.0.1',6000))
+                try: data,addr=monitor.recvfrom(65535)
+                except socket.timeout: continue
+                text=data.rstrip(b'\0').decode('utf-8',errors='replace')
+                if not text.startswith('(show '): continue
+                rec=sexpr(text)
+                if side is None: return addr
+                count=0
+                for p in rec[2:]:
+                    if isinstance(p,list) and isinstance(p[0],list) and p[0][0]==side:
+                        state=int(str(p[2]),16)
+                        if state and not state & (0x100|0x200|0x80000): count+=1
+                if count==11: return addr
+            raise RuntimeError('Timed out waiting for server/11 players on '+str(side))
+        monitor_addr=wait_for(timeout=15)
+        start_team(config['left'],teams/'left',launch_log('left.log'),procs,env)
+        wait_for('l')  # Establish left side before launching opponent.
+        start_team(config['right'],teams/'right',launch_log('right.log'),procs,env)
+        wait_for('r')
+        while server.poll() is None:
+            if cancel.is_set(): raise Cancelled()
+            if time.monotonic()>deadline: raise RuntimeError('Match timeout; logs retained')
+            # Drain UDP so server sends do not accumulate in socket buffer.
+            try: monitor.recvfrom(65535)
+            except socket.timeout: pass
+        if server.returncode: raise RuntimeError(f'Server exited with code {server.returncode}')
+        parsed=analyze(folder/'match.rcg')
+        if not parsed['natural_end'] or parsed['scores'] is None or min(parsed['max_players'].values())<11:
+            raise RuntimeError('Game did not finish normally with both complete teams')
+        if not (folder/'match.rcl').exists(): raise RuntimeError('Missing .rcl log')
+        return {'status':'completed','left_score':parsed['scores'][0],'right_score':parsed['scores'][1],
+                'server_team_names':parsed['team_names'],'last_cycle':parsed['last_cycle'],'possession':parsed['possession']}
+    finally:
+        monitor.close()
+        for p in reversed(procs): kill_group(p)
+        for f in files: f.close()
+
+def run_job(job,write):
+    import zipfile
+    state=job['state']; root=job['root']; cancel=job['cancel']; config=state['config']
+    state['status']='running'; write(job)
+    try:
+        for r in range(1,config['rounds']+1):
+            for g in range(1,config['games_per_round']+1):
+                if cancel.is_set(): raise Cancelled()
+                entry={'round':r,'game':g,'left_team':config['left']['name'],'right_team':config['right']['name']}
+                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel))
+                except Cancelled: entry.update(status='cancelled'); state['matches'].append(entry); raise
+                except Exception as exc: entry.update(status='failed',error=str(exc))
+                state['matches'].append(entry); state['summary']=summary(state['matches']); write(job)
+        state['status']='completed'
+    except Cancelled: state['status']='cancelled'
+    except Exception as exc: state.update(status='failed',error=str(exc))
+    finally:
+        state['summary']=summary(state['matches']); state['finished_at']=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()); write(job)
+        tmp=root/'logs.tmp.zip'
+        with zipfile.ZipFile(tmp,'w',compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(root/'results.json','results.json')
+            if (root/'logs').exists():
+                for p in (root/'logs').rglob('*'):
+                    if p.is_file() and not p.is_symlink(): archive.write(p,str(p.relative_to(root)))
+        tmp.replace(root/'logs.zip')
+        state['archive_ready']=True; write(job)

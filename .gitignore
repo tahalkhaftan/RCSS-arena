@@ -1,0 +1,17 @@
+data/
+job-data/
+server-build/
+server-install/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+*.rcg
+*.rcl
+*.log
+*.zip
+*.tar.gz
+*.tar.xz
+teams/
+secrets/
