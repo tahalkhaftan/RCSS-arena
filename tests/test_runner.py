@@ -1,6 +1,7 @@
 """Lifecycle integration with a fake UDP server, NOT a real RCSS match."""
 import os
 import json
+import subprocess
 import sys
 import tempfile
 import threading
@@ -8,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from runner import run_match, run_job
+from runner import run_match, run_job, start_team
 FAKE=r'''#!/usr/bin/env python3
 import sys,socket,time
 from pathlib import Path
@@ -30,6 +31,24 @@ while True:
 s.close()
 '''
 class Lifecycle(unittest.TestCase):
+    def test_each_team_loads_its_own_bundled_library(self):
+        with tempfile.TemporaryDirectory() as d:
+            base=Path(d); env=os.environ.copy()
+            env.update(RCSS_HOST='127.0.0.1',RCSS_PORT='6000',RCSS_COACH_PORT='6001',RCSS_OLCOACH_PORT='6002')
+            env['LD_LIBRARY_PATH']=str(base/'server-libs')
+            for side,value in [('left',11),('right',22)]:
+                root=base/side; libs=root/'lib'; libs.mkdir(parents=True)
+                (root/'library.c').write_text(f'int team_value(void) {{ return {value}; }}')
+                (root/'player.c').write_text('#include <stdio.h>\nint team_value(void); int main(void) { printf("%d\\n",team_value()); }')
+                subprocess.run(['cc','-shared','-fPIC','-Wl,-soname,libfixture.so.18',str(root/'library.c'),'-o',str(libs/'libfixture.so.18')],check=True)
+                subprocess.run(['cc',str(root/'player.c'),'-L'+str(libs),'-l:libfixture.so.18','-o',str(root/'player')],check=True)
+                procs=[]
+                with (root/'launch.log').open('wb') as log:
+                    start_team({'directory':'.','command':'./player'},root,log,procs,env)
+                    self.assertEqual(procs[0].wait(timeout=5),0)
+                self.assertEqual((root/'launch.log').read_text(),f'{value}\n')
+            self.assertEqual(env['LD_LIBRARY_PATH'],str(base/'server-libs'))
+
     def test_failed_matches_do_not_report_completed_batch(self):
         success={'status':'completed','left_score':1,'right_score':0,'possession':{}}
         for outcomes,expected in (([success,success],'completed'),

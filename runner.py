@@ -21,10 +21,18 @@ def kill_group(proc):
     except subprocess.TimeoutExpired: pass
 
 def start_team(team,root,log,procs,env):
+    root=root.resolve()
+    team_env=env.copy()
+    # Search the uploaded package, since binaries often refer to the original
+    # computer's library install path. Keep each opponent's libraries separate.
+    lib_dirs=sorted({str(p.parent.resolve()) for p in root.rglob('*.so*') if p.is_file()})
+    if lib_dirs:
+        existing=team_env.get('LD_LIBRARY_PATH','')
+        team_env['LD_LIBRARY_PATH']=':'.join(lib_dirs+([existing] if existing else []))
     cmd=team['command']
     for key in ('host','port','coach_port','olcoach_port'):
         cmd=cmd.replace('{'+key+'}',env['RCSS_'+key.upper()])
-    proc=subprocess.Popen(['/bin/bash','-c',cmd],cwd=root/team['directory'],env=env,
+    proc=subprocess.Popen(['/bin/bash','-c',cmd],cwd=root/team['directory'],env=team_env,
                           stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
     procs.append(proc)
 
@@ -56,6 +64,14 @@ def run_match(config,teams,folder,cancel):
             while time.monotonic()<until:
                 if cancel.is_set(): raise Cancelled()
                 if server.poll() is not None: raise RuntimeError('rcssserver exited while preparing teams; see server.log')
+                if side is not None:
+                    team_log=folder/('left.log' if side=='l' else 'right.log')
+                    with team_log.open('rb') as f:
+                        f.seek(max(0,team_log.stat().st_size-8192))
+                        lines=f.read().decode('utf-8',errors='replace').splitlines()
+                    for line in lines:
+                        if 'error while loading shared libraries:' in line:
+                            raise RuntimeError(('Left' if side=='l' else 'Right')+' team launch failed: '+line[:600])
                 if monitor_addr is None: monitor.sendto(b'(dispinit version 4)\0',('127.0.0.1',6000))
                 try: data,addr=monitor.recvfrom(65535)
                 except socket.timeout: continue
