@@ -1,7 +1,7 @@
 """Run on GitHub-hosted Ubuntu only; publish per-match reports and final ZIP."""
 import json,os,threading,time
 from pathlib import Path
-from github_api import storage_client
+from github_api import storage_client,is_arena_release
 from app import extract,validate
 from runner import run_job
 
@@ -16,7 +16,7 @@ class RemoteCancel:
 
 def main():
     gh=storage_client();gh.require_private();ident=int(os.environ['RELEASE_ID']);rel=gh.release(ident)
-    if not rel['tag_name'].startswith('arena-'):raise ValueError('Invalid release')
+    if not is_arena_release(rel):raise ValueError('Invalid release')
     assets=gh.assets(ident);config=validate(json.loads(gh.read_asset(assets['config.json'])))
     if config['rounds']*config['games_per_round']>50:raise ValueError('Maximum 50 matches')
     root=Path('job-data').resolve();root.mkdir(exist_ok=True)

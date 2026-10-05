@@ -1,9 +1,16 @@
 """GitHub API used only on the backend/runner. Never expose token to HTML."""
 import json
 import os
+import re
 import urllib.request
 import urllib.error
 from urllib.parse import quote
+
+def is_arena_release(release):
+    """Draft tag names may become untagged-...; the Arena name stays stable."""
+    return any(re.fullmatch(r'arena-[0-9a-f]{32}', str(release.get(key) or ''))
+               for key in ('name', 'tag_name'))
+
 
 class SafeRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,req,fp,code,msg,headers,newurl):

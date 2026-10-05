@@ -3,10 +3,10 @@ from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from cloud_app import state,CACHE
-from github_api import SafeRedirect
+from github_api import SafeRedirect,is_arena_release
 from urllib.request import Request
 class FakeGitHub:
-    def release(self,i):return {'tag_name':'arena-test','created_at':'2026-10-04'}
+    def release(self,i):return {'tag_name':'arena-'+'a'*32,'created_at':'2026-10-04'}
     def assets(self,i):return {'config.json':{'id':1}}
     def read_asset(self,a):return b'{"rounds":1,"games_per_round":5}'
     def json(self,p):return {'workflow_runs':[{'display_title':'Arena 7','status':'completed','conclusion':'failure','html_url':'https://github.com/test/actions/runs/1'}]}
@@ -24,6 +24,23 @@ class Cloud(unittest.TestCase):
         self.assertEqual(result['progress']['cycle'],1234)
         self.assertEqual(result['status'],'running')
         self.assertFalse(result['archive_ready'])
+
+    def test_untagged_completed_release_retains_results(self):
+        import json
+        report={'id':'7','status':'completed','matches':[{'status':'completed','left_score':13,'right_score':2}], 'total':1}
+        class Storage(FakeGitHub):
+            def release(self,i): return {'tag_name':'untagged-example','name':'arena-'+'a'*32,'body':json.dumps({'arena_state':report})}
+            def assets(self,i): return {'logs.zip':{'id':2}}
+        CACHE.clear(); result=state(Storage(),7)
+        self.assertEqual(result['status'],'completed')
+        self.assertEqual(result['matches'][0]['left_score'],13)
+        self.assertTrue(result['archive_ready'])
+
+    def test_diagnostic_and_unrelated_releases_are_not_tests(self):
+        self.assertTrue(is_arena_release({'name':'arena-'+'b'*32,'tag_name':'untagged-123'}))
+        self.assertTrue(is_arena_release({'tag_name':'arena-'+'c'*32}))
+        self.assertFalse(is_arena_release({'name':'arena-diagnostic-'+'a'*32}))
+        self.assertFalse(is_arena_release({'name':'other','tag_name':'untagged-123'}))
 
     def test_strip_secret_on_asset_redirect(self):
         req=Request('https://api.github.com/test',headers={'Authorization':'Bearer secret'})

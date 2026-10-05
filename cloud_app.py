@@ -5,7 +5,7 @@ from email.policy import default
 from http.server import ThreadingHTTPServer
 from urllib.parse import urlparse
 from app import Handler as BaseHandler,validate
-from github_api import GitHub,storage_client
+from github_api import GitHub,storage_client,is_arena_release
 from pathlib import Path
 LOCK=threading.Lock();CACHE={}
 
@@ -14,7 +14,7 @@ def state(gh,ident,workflow=None):
     now=time.monotonic()
     if ident in CACHE and now-CACHE[ident][0]<10:return CACHE[ident][1]
     rel=gh.release(ident)
-    if not rel['tag_name'].startswith('arena-'):raise ValueError('Not an Arena test')
+    if not is_arena_release(rel):raise ValueError('Not an Arena test')
     assets=gh.assets(ident)
     try: metadata=json.loads(rel.get('body') or '{}')
     except (ValueError,TypeError): metadata={}
@@ -47,7 +47,7 @@ class Handler(BaseHandler):
             if path=='/api/tests':
                 rels=gh.json('/releases?per_page=100');rows=[]
                 for rel in rels:
-                    if rel['tag_name'].startswith('arena-'):
+                    if is_arena_release(rel):
                         rows.append({'id':str(rel['id']),'status':'unknown','started_at':rel['created_at']})
                 return self.send(200,rows)
             import re
@@ -56,7 +56,7 @@ class Handler(BaseHandler):
             ident=m[1]
             if not m[2]:return self.send(200,state(gh,ident,workflow))
             rel=gh.release(ident)
-            if not rel['tag_name'].startswith('arena-'):raise ValueError('Not an Arena test')
+            if not is_arena_release(rel):raise ValueError('Not an Arena test')
             asset=gh.assets(ident).get('logs.zip')
             if not asset:return self.send(409,{'error':'ZIP is not ready'})
             # Stream archive instead of retaining it on Render or in RAM.
@@ -78,7 +78,7 @@ class Handler(BaseHandler):
             workflow=GitHub();gh=storage_client();gh.require_private();m=re.fullmatch(r'/api/tests/(\d+)/cancel',path)
             if m:
                 rel=gh.release(m[1])
-                if not rel['tag_name'].startswith('arena-'):raise ValueError('Not an Arena test')
+                if not is_arena_release(rel):raise ValueError('Not an Arena test')
                 # Graceful runner cancellation. If queued/building, takes effect when runner starts.
                 gh.put(m[1],'cancel.json',b'{"cancel":true}','application/json');CACHE.pop(m[1],None)
                 return self.send(202,{'status':'cancellation_requested'})

@@ -118,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
         return True
     def do_GET(self):
         path=urlparse(self.path).path
-        if path=='/healthz': self.send(200,{'ok':True}); return
+        if path=='/healthz': self.send(200,{'ok':True,'version':'2026.10.05.2','commit':os.environ.get('RENDER_GIT_COMMIT','')}); return
         if not self.auth(): return
         if path in ('/','/index.html'):
             self.send(200,(Path(__file__).parent/'static/index.html').read_bytes(),'text/html; charset=utf-8'); return

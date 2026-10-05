@@ -53,12 +53,39 @@ $('liveProgress').textContent=live?'بازی '+live.match_index+' — سایکل
 const failures=matches.filter(m=>m.status==='failed').map(m=>'دور '+m.round+'، بازی '+m.game+': '+(m.error||'خطای نامشخص'));
 $('error').textContent=[report.error,...failures].filter(Boolean).join('\n');}
 
-async function request(url,options={}){const res=await fetch(url,{credentials:'include',signal:controller?.signal,...options});if(!res.ok){let msg='HTTP '+res.status;try{msg=(await res.json()).error||msg}catch{}throw Error('خطای سرویس: '+msg)}return res}
+async function request(url,options={}){const res=await fetch(url,{credentials:'include',signal:controller?.signal,...options});if(!res.ok){let msg='HTTP '+res.status;try{msg=(await res.json()).error||msg}catch{}const error=Error('خطای سرویس: '+msg);error.status=res.status;throw error}return res}
 async function demo(config){for(let r=1;r<=config.rounds;r++){for(let g=1;g<=config.games_per_round;g++){if(!running)return;const index=(r-1)*config.games_per_round+g;$('status').textContent='آزمایشی — بازی '+index+' از '+report.total;await pause(400);if(!running)return;report.matches.push({round:r,game:g,status:'completed',left_team:config.left.name,right_team:config.right.name,left_score:Math.floor(Math.random()*5),right_score:Math.floor(Math.random()*5)});render()}}report.status='completed';render();$('status').textContent='تست آزمایشی تمام شد — نتایج ساختگی';setRunning(false)}
 $('form').addEventListener('submit',async event=>{event.preventDefault();if(running)return;$('error').textContent='';try{const config=settings();if(!Number.isInteger(config.rounds)||!Number.isInteger(config.games_per_round)||config.rounds<1||config.games_per_round<1||count()>50)throw Error('تعدادها باید عدد صحیح مثبت باشند؛ حداکثر ۵۰ مسابقه در هر تست.');for(const t of [config.left,config.right]){if(!t.name||!t.command||!t.directory)throw Error('نام، پوشه و دستور هر دو تیم را کامل کن.');if(t.directory.startsWith('/')||t.directory.includes('\\')||t.directory.split('/').includes('..'))throw Error('پوشه باید مسیر نسبی داخل فایل ZIP باشد.')}const demoMode=$('mode').value==='demo';const api=demoMode?null:baseURL();if(!demoMode&&(!$('leftFile').files[0]||!$('rightFile').files[0]))throw Error('فایل ZIP هر دو تیم را انتخاب کن.');if(!demoMode)for(const side of ['left','right'])if(!/\.zip$/i.test($(side+'File').files[0].name))throw Error('فایل تیم‌ها باید ZIP باشد.');
 report={demo:demoMode,status:'running',started_at:new Date().toISOString(),config,total:count(),matches:[]};job=null;logReady=false;$('zip').disabled=true;$('reportNote').textContent=demoMode?'پیش‌نمایش رابط — همهٔ نتایج این تست ساختگی‌اند.':'آمار کل تست و JSON نتیجهٔ هر مسابقه';$('zipNote').textContent=demoMode?'در حالت آزمایشی فایل .rcg یا .rcl ساخته نمی‌شود؛ ZIP لاگ‌ها غیرفعال است.':'پس از پایان، ZIP لاگ‌ها از سرویس دریافت می‌شود.';controller=new AbortController();setRunning(true);render();if(demoMode){await demo(config);return}
 $('stop').disabled=true;$('status').textContent='در حال آپلود تیم‌ها…';const data=new FormData();data.append('left_file',$('leftFile').files[0]);data.append('right_file',$('rightFile').files[0]);data.append('config',JSON.stringify(config));const created=await(await request(api+'/api/tests',{method:'POST',body:data})).json();if(!created.id||typeof created.id!=='string')throw Error('شناسهٔ تست از سرویس دریافت نشد.');job={id:created.id,api};$('stop').disabled=false;await watchJob()}catch(e){if(e.name==='AbortError')return;$('error').textContent=e.message||'خطای ارتباط با سرویس';$('status').textContent='خطا در اجرای درخواست';if(report){report.status='error';report.error=e.message;render()}setRunning(false)}});
-async function watchJob(){while(running){const state=await(await request(job.api+'/api/tests/'+encodeURIComponent(job.id))).json();if(!Array.isArray(state.matches)||!['queued','running','completed','cancelled','failed'].includes(state.status))throw Error('ساختار JSON سرویس معتبر نیست.');report=state;render();$('status').textContent=state.status==='queued'?'در صف اجرا':'در حال اجرای مسابقه‌ها';if(['completed','cancelled','failed'].includes(state.status)&&(state.archive_ready||state.publication_pending!==true)){render();$('status').textContent=state.status==='completed'?'تست کامل شد':state.status==='cancelled'?'تست متوقف شد':'اجرای تست ناموفق بود';logReady=state.archive_ready===true;$('zip').disabled=!logReady;setRunning(false);break}await pause(10000)}}
+async function watchJob(){
+ let connectionFailures=0;
+ while(running){
+  let state;
+  try{
+   state=await(await request(job.api+'/api/tests/'+encodeURIComponent(job.id))).json();
+   if(!Array.isArray(state.matches)||!['queued','running','completed','cancelled','failed'].includes(state.status))throw Error('پاسخ موقت سرویس قابل خواندن نیست.');
+   connectionFailures=0;
+  }catch(error){
+   if(error.name==='AbortError')return;
+   if(error.status&&error.status<500&&![408,429].includes(error.status)){
+    $('error').textContent=error.message+' — گزارش آخرین وضعیت حفظ شد؛ از بازیابی آخرین تست استفاده کن.';
+    $('status').textContent='دریافت وضعیت نیاز به بررسی دارد';setRunning(false);return;
+   }
+   connectionFailures++;
+   $('status').textContent='ارتباط موقتاً قطع شده؛ در حال تلاش مجدد…';
+   $('error').textContent='قطع ارتباط سایت به معنی توقف مسابقه نیست. وضعیت دوباره دریافت می‌شود.';
+   await pause(Math.min(30000,5000*connectionFailures));continue;
+  }
+  report=state;render();
+  $('status').textContent=state.status==='queued'?'در صف آماده‌سازی GitHub':state.progress?.stage==='connecting'?'در حال اتصال تیم‌ها':'در حال اجرای مسابقه‌ها';
+  if(['completed','cancelled','failed'].includes(state.status)&&(state.archive_ready||state.publication_pending!==true)){
+   $('status').textContent=state.status==='completed'?'تست کامل شد':state.status==='cancelled'?'تست متوقف شد':'اجرای تست ناموفق بود';
+   logReady=state.archive_ready===true;$('zip').disabled=!logReady;setRunning(false);break;
+  }
+  await pause(10000);
+ }
+}
 $('recent').addEventListener('click',async()=>{if(running)return;try{controller=new AbortController();const api=baseURL();const jobs=await(await request(api+'/api/tests')).json();if(!jobs.length)throw Error('هنوز تستی ثبت نشده است.');const last=jobs.sort((a,b)=>b.started_at.localeCompare(a.started_at))[0];job={id:last.id,api};report=await(await request(api+'/api/tests/'+job.id)).json();$('reportNote').textContent='نتایج واقعی آخرین تست';render();if(['queued','running'].includes(report.status)||report.publication_pending===true||!report.archive_ready&&report.status!=='failed'){setRunning(true);await watchJob()}else{$('status').textContent='وضعیت تست: '+report.status;logReady=report.archive_ready===true;$('zip').disabled=!logReady}}catch(e){$('error').textContent=e.message;setRunning(false)}});
 $('stop').addEventListener('click',async()=>{if(!running)return;$('stop').disabled=true;try{if(job){await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/cancel',{method:'POST'});$('status').textContent='درخواست توقف ارسال شد؛ منتظر تأیید سرویس…'}else{running=false;controller?.abort();if(report){report.status='cancelled';render()}setRunning(false);$('status').textContent='تست متوقف شد'}}catch(e){$('error').textContent='توقف تأیید نشد: '+e.message;$('stop').disabled=false}});
 function save(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
