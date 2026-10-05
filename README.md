@@ -4,6 +4,10 @@ A mobile-friendly RoboCup Soccer Simulation 2D test portal. The web control plan
 
 [راهنمای فارسی و نصب](README_FA.md) · [Security model](SECURITY.md) · [Third-party licenses](THIRD_PARTY.md)
 
+Authentication components and token flow: [AUTHENTICATION.md](AUTHENTICATION.md).
+
+Authentication components and token flow: [AUTHENTICATION.md](AUTHENTICATION.md).
+
 ## Features
 
 - Left/right ZIP uploads, relative working directory and start command per team.
