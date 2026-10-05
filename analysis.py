@@ -22,7 +22,14 @@ def sexpr(text):
     return root
 
 def params(record):
-    return {x[0]: float(x[1]) for x in record[1:] if isinstance(x,list) and len(x)==2}
+    result={}
+    for x in record[1:]:
+        if not isinstance(x,list) or len(x)!=2: continue
+        # Real server_param records also contain filenames and empty strings.
+        # Possession calculations only need the numeric parameters.
+        try: result[x[0]]=float(x[1])
+        except (ValueError,TypeError): continue
+    return result
 
 def analyze(path):
     mode = None; ended = False; score = None; names = None

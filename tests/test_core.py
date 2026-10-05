@@ -13,6 +13,16 @@ from app import extract, validate
 HEADER='ULG5\n(server_param (ball_size 0.085) (player_size 0.3) (kickable_margin 0.7))\n(player_type (id 0) (player_size 0.3) (kickable_margin 0.7))\n(team 0 A B 0 0)\n(playmode 0 play_on)\n'
 def show(c,l,r): return f'(show {c} ((b) 0 0 0 0) ((l 1) 0 0x1 {l} 0 0 0 0 0) ((r 1) 0 0x1 {r} 0 0 0 0 0))\n'
 class Core(unittest.TestCase):
+    def test_real_server_header_contains_text_parameters(self):
+        header=HEADER.replace('(ball_size 0.085)', '(coach_msg_file "") (game_log_dir "/tmp/logs") (game_log_fixed_name "match") (ball_size 0.085)')
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'match.rcg'
+            p.write_text(header+show(1,.5,4)+'(playmode 6000 time_over)\n(team 6000 A B 2 1)\n')
+            result=analyze(p)
+            self.assertTrue(result['natural_end'])
+            self.assertEqual(result['scores'],[2,1])
+            self.assertEqual(result['possession']['left_percent'],100)
+
     def test_possession_categories_and_final_score(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'match.rcg';p.write_text(HEADER+show(1,.5,4)+show(2,4,.5)+show(3,.5,.5)+show(4,4,4)+'(playmode 5 time_over)\n(team 5 A B 2 1)\n')
