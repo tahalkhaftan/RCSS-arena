@@ -1,5 +1,6 @@
 """Lifecycle integration with a fake UDP server, NOT a real RCSS match."""
 import os
+import json
 import sys
 import tempfile
 import threading
@@ -7,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from runner import run_match
+from runner import run_match, run_job
 FAKE=r'''#!/usr/bin/env python3
 import sys,socket,time
 from pathlib import Path
@@ -29,6 +30,23 @@ while True:
 s.close()
 '''
 class Lifecycle(unittest.TestCase):
+    def test_failed_matches_do_not_report_completed_batch(self):
+        success={'status':'completed','left_score':1,'right_score':0,'possession':{}}
+        for outcomes,expected in (([success,success],'completed'),
+                                  ([success,RuntimeError('server failed')],'failed'),
+                                  ([RuntimeError('server failed')]*2,'failed')):
+            with self.subTest(expected=expected),tempfile.TemporaryDirectory() as d:
+                root=Path(d)
+                config={'rounds':1,'games_per_round':2,'left':{'name':'A'},'right':{'name':'B'}}
+                state={'config':config,'matches':[]}
+                job={'state':state,'root':root,'cancel':threading.Event()}
+                def write(_): (root/'results.json').write_text(json.dumps(state))
+                with patch('runner.run_match',side_effect=outcomes): run_job(job,write)
+                self.assertEqual(state['status'],expected)
+                self.assertEqual(len(state['matches']),2)
+                self.assertTrue(state['archive_ready'])
+                self.assertTrue((root/'logs.zip').is_file())
+
     def test_runner_argv_logs_and_result(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); fake=root/'server';fake.write_text(FAKE);fake.chmod(0o700)

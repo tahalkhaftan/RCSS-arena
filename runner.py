@@ -39,7 +39,8 @@ def run_match(config,teams,folder,cancel):
           'game_log_compression':0,'text_log_compression':0,
           'game_log_fixed':'true','text_log_fixed':'true','game_log_dated':'false','text_log_dated':'false',
           'game_log_fixed_name':'match','text_log_fixed_name':'match','game_log_dir':str(folder),'text_log_dir':str(folder),
-          'team_l_start':'','team_r_start':'','port':6000,'coach_port':6001,'olcoach_port':6002}
+          # RCSS parses argv as configuration text: empty strings need quotes.
+          'team_l_start':'""','team_r_start':'""','port':6000,'coach_port':6001,'olcoach_port':6002}
     monitor=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); monitor.settimeout(.3)
     deadline=time.monotonic()+int(os.environ.get('MATCH_TIMEOUT_SECONDS','1800'))
     try:
@@ -105,7 +106,9 @@ def run_job(job,write):
                 except Cancelled: entry.update(status='cancelled'); state['matches'].append(entry); raise
                 except Exception as exc: entry.update(status='failed',error=str(exc))
                 state['matches'].append(entry); state['summary']=summary(state['matches']); write(job)
-        state['status']='completed'
+        failures=sum(m['status']!='completed' for m in state['matches'])
+        state['status']='failed' if failures else 'completed'
+        if failures: state['error']=f'{failures} of {len(state["matches"])} matches failed; see per-match errors and logs'
     except Cancelled: state['status']='cancelled'
     except Exception as exc: state.update(status='failed',error=str(exc))
     finally:
