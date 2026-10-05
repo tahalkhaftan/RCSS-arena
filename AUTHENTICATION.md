@@ -73,14 +73,14 @@ This document follows the current `main` branch implementation in `app.py`,
   project source and public Actions logs are public; never put team files or
   tokens in commits or public logs.
 
-## Current repository check
+## Workflow prerequisites
 
-The current public `main` tree does not contain
-`.github/workflows/matches.yml` or `.github/workflows/checks.yml`. However,
-`cloud_app.py` dispatches the former by path. Until that workflow is added to
-the default branch and its Actions secret/variable are configured, match
-dispatch from the website cannot complete. This is separate from the Arena
-login and GitHub-token authentication described above.
+The public project contains `.github/workflows/matches.yml`, which is the
+workflow `cloud_app.py` dispatches. Repository setup still requires the
+`STORAGE_TOKEN` Actions secret and `STORAGE_REPOSITORY` Actions variable, and
+Actions must be enabled for the repository. Without those settings the
+workflow cannot access the private releases even though the Arena website
+login succeeds.
 
 ## Source references
 

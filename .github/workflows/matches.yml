@@ -1,0 +1,47 @@
+name: RCSS Matches
+run-name: Arena ${{ inputs.release_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Release ID created by Arena website
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rcss-matches
+  cancel-in-progress: false
+jobs:
+  matches:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install server build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential flex bison libboost-all-dev zlib1g-dev
+      - name: Restore compiled server
+        id: server-cache
+        uses: actions/cache@v4
+        with:
+          path: server-install
+          key: rcss19-ubuntu22-${{ hashFiles('vendor/rcssserver-19.0.0/**') }}
+      - name: Build RCSSServer 19
+        if: steps.server-cache.outputs.cache-hit != 'true'
+        run: |
+          cmake -S vendor/rcssserver-19.0.0 -B server-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/server-install"
+          cmake --build server-build -j4
+          cmake --install server-build
+      - name: Run matches and publish results
+        env:
+          STORAGE_TOKEN: ${{ secrets.STORAGE_TOKEN }}
+          STORAGE_REPOSITORY: ${{ vars.STORAGE_REPOSITORY }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          LD_LIBRARY_PATH: ${{ github.workspace }}/server-install/lib
+          RCSSSERVER: ${{ github.workspace }}/server-install/bin/rcssserver
+          MATCH_TIMEOUT_SECONDS: '1800'
+        run: python3 action_job.py

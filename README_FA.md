@@ -1,8 +1,8 @@
 # RCSS Arena — مخزن عمومی + Render رایگان
 
-این بسته برای مخزن عمومی https://github.com/tahalkhaftan/RCSS-arena آماده شده است. سایت روی Render Free اجرا می‌شود و مسابقه‌ها با RCSSServer 19.0.0 روی GitHub Actions انجام می‌شوند. سورس رسمی سرور در vendor قرار دارد؛ این «سرور نصب‌شدهٔ قابل‌انتقال» نیست و Workflow آن را Build می‌کند.
-
 شرح اجزای احراز هویت و مسیر توکن‌ها: [AUTHENTICATION.md](AUTHENTICATION.md).
+
+این بسته برای مخزن عمومی https://github.com/tahalkhaftan/RCSS-arena آماده شده است. سایت روی Render Free اجرا می‌شود و مسابقه‌ها با RCSSServer 19.0.0 روی GitHub Actions انجام می‌شوند. سورس رسمی سرور در پوشهٔ vendor قرار دارد و Workflow آن را روی runner می‌سازد؛ فایل باینری نصب‌شده و وابسته به سیستم خاصی در مخزن نیست.
 
 ## عمومی‌بودن چه معنایی دارد؟
 
@@ -80,4 +80,4 @@ Render Free بعد از ۱۵ دقیقه بی‌ترافیک می‌خوابد و
 آزمون‌های محلی شامل لاگ مصنوعی، سرور UDP ساختگی، اعتبارسنجی ZIP و API گیت‌هاب ساختگی هستند. اجرای واقعی روی Render/GitHub و مسابقه با باینری تیم‌های تو هنوز تأیید نشده‌اند. تنظیمات درست و آزمون یک بازی واقعی آخرین مرحلهٔ راه‌اندازی است.
 
 برای اجرای بررسی‌ها: python3 -m unittest discover -s tests -v
-فایل README.md معرفی انگلیسی پروژه برای صفحهٔ GitHub است. LICENSE فقط کد جدید Arena را پوشش می‌دهد؛ مجوز سرور در vendor و THIRD_PARTY.md حفظ شده است.
+فایل README.md معرفی انگلیسی پروژه برای صفحهٔ GitHub است. LICENSE فقط کد جدید Arena را پوشش می‌دهد؛ مجوز سورس upstream و مشخصات commit آن در THIRD_PARTY.md آمده است.
