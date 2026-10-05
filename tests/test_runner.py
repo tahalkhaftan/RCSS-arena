@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from runner import run_match, run_job, start_team
+from runner import run_match, run_job, start_team, monitor_snapshot
 FAKE=r'''#!/usr/bin/env python3
 import sys,socket,time
 from pathlib import Path
@@ -66,6 +66,17 @@ class Lifecycle(unittest.TestCase):
                 self.assertTrue(state['archive_ready'])
                 self.assertTrue((root/'logs.zip').is_file())
 
+    def test_live_snapshot_tracks_cycles_score_and_real_end(self):
+        data='(show 3000 (pm 3) (tm A B 2 1) ((b) 0 0 0 0) ((l 1) 0 0x1 1 1) ((r 1) 0 0x1 3 4))'
+        result=monitor_snapshot(data)
+        self.assertEqual(result['percent'],50)
+        self.assertEqual(result['cycle'],3000)
+        self.assertEqual(result['left_score'],2)
+        self.assertEqual(result['right_players'],1)
+        self.assertLess(monitor_snapshot('(show 6000 (pm 3))',result)['percent'],100)
+        self.assertEqual(monitor_snapshot('(playmode 6000 time_over)',result)['percent'],100)
+        self.assertEqual(monitor_snapshot('(msg malformed XPM)',result),result)
+
     def test_runner_argv_logs_and_result(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); fake=root/'server';fake.write_text(FAKE);fake.chmod(0o700)
@@ -74,6 +85,9 @@ class Lifecycle(unittest.TestCase):
             for side in ('left','right'):
                 c[side]={'directory':'.','command':f'touch "{folder}/{side}-ready"'}
             with patch.dict(os.environ,{'RCSSSERVER':str(fake),'MATCH_TIMEOUT_SECONDS':'10'}):
-                result=run_match(c,teams,folder,threading.Event())
+                updates=[]
+                result=run_match(c,teams,folder,threading.Event(),updates.append)
+            self.assertTrue(updates)
+            self.assertTrue(any(u.get('stage')=='playing' for u in updates))
             self.assertEqual(result['status'],'completed');self.assertEqual(result['left_score'],2);self.assertTrue((folder/'left.log').exists());self.assertEqual(result['possession']['free_percent'],100)
 if __name__=='__main__':unittest.main()

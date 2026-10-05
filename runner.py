@@ -1,5 +1,6 @@
 """Sequential runner for trusted teams on one dedicated RCSS Arena instance."""
 import os
+import re
 import signal
 import shutil
 import socket
@@ -36,12 +37,39 @@ def start_team(team,root,log,procs,env):
                           stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
     procs.append(proc)
 
-def run_match(config,teams,folder,cancel):
+def monitor_snapshot(text, previous=None):
+    """Read only structured state records; graphical/message records are irrelevant."""
+    snapshot=dict(previous or {})
+    if not text.startswith(('(show ', '(team ', '(playmode ')): return snapshot
+    rec=sexpr(text)
+    if rec[0]=='team':
+        snapshot.update(server_team_names=rec[2:4],left_score=int(rec[4]),right_score=int(rec[5]))
+    elif rec[0]=='playmode': snapshot['playmode']=rec[2]
+    else:
+        snapshot['cycle']=int(rec[1])
+        counts={'l':0,'r':0}
+        for item in rec[2:]:
+            if not isinstance(item,list) or not item: continue
+            if item[0]=='pm': snapshot['playmode']=str(item[1])
+            elif item[0]=='tm':
+                snapshot.update(server_team_names=item[1:3],left_score=int(item[3]),right_score=int(item[4]))
+            elif isinstance(item[0],list) and item[0][0] in counts:
+                state=int(str(item[2]),16)
+                if state and not state & (0x100|0x200|0x80000): counts[item[0][0]]+=1
+        snapshot.update(left_players=counts['l'],right_players=counts['r'])
+    snapshot['expected_cycles']=6000
+    # Stoppages do not advance the RCSS cycle. 100% requires confirmed time_over.
+    snapshot['percent']=100 if snapshot.get('playmode') in ('time_over','2') else min(99.9,round(snapshot.get('cycle',0)/60,1))
+    snapshot['updated_at']=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
+    return snapshot
+
+
+def run_match(config,teams,folder,cancel,progress=None):
     folder.mkdir(parents=True); procs=[]; files=[]
     env=os.environ.copy(); env.update(RCSS_HOST='127.0.0.1',RCSS_PORT='6000',RCSS_COACH_PORT='6001',RCSS_OLCOACH_PORT='6002')
     # Dedicated instance: one match uses the standard ports. No public UDP needed.
     opts={'auto_mode':'true','connect_wait':1000,'kick_off_wait':100,'game_over_wait':20,
-          'nr_normal_halfs':2,'nr_extra_halfs':0,'penalty_shoot_outs':'false',
+          'half_time':300,'nr_normal_halfs':2,'nr_extra_halfs':0,'penalty_shoot_outs':'false',
           'synch_mode':'true' if config['synch_mode'] else 'false',
           'game_logging':'true','text_logging':'true','game_log_version':5,
           'game_log_compression':0,'text_log_compression':0,
@@ -59,6 +87,16 @@ def run_match(config,teams,folder,cancel):
         procs.append(server)
         # Read-only UDP monitor supplies connection counts, without a graphical monitor.
         monitor_addr=None
+        snapshot={'cycle':0,'percent':0,'expected_cycles':6000,'stage':'connecting'}
+        published=0
+        def observe(data, force=False):
+            nonlocal snapshot,published
+            text=data.rstrip(b'\0').decode('utf-8',errors='replace')
+            try: snapshot=monitor_snapshot(text,snapshot)
+            except (ValueError,IndexError,TypeError): return
+            now=time.monotonic()
+            if progress and (force or now-published>=10):
+                progress(dict(snapshot)); published=now
         def wait_for(side=None,timeout=35):
             until=time.monotonic()+timeout
             while time.monotonic()<until:
@@ -75,6 +113,7 @@ def run_match(config,teams,folder,cancel):
                 if monitor_addr is None: monitor.sendto(b'(dispinit version 4)\0',('127.0.0.1',6000))
                 try: data,addr=monitor.recvfrom(65535)
                 except socket.timeout: continue
+                observe(data)
                 text=data.rstrip(b'\0').decode('utf-8',errors='replace')
                 if not text.startswith('(show '): continue
                 rec=sexpr(text)
@@ -91,13 +130,16 @@ def run_match(config,teams,folder,cancel):
         wait_for('l')  # Establish left side before launching opponent.
         start_team(config['right'],teams/'right',launch_log('right.log'),procs,env)
         wait_for('r')
+        snapshot['stage']='playing'
+        if progress: progress(dict(snapshot))
         while server.poll() is None:
             if cancel.is_set(): raise Cancelled()
             if time.monotonic()>deadline: raise RuntimeError('Match timeout; logs retained')
             # Drain UDP so server sends do not accumulate in socket buffer.
-            try: monitor.recvfrom(65535)
+            try: observe(monitor.recvfrom(65535)[0])
             except socket.timeout: pass
-        if server.returncode: raise RuntimeError(f'Server exited with code {server.returncode}')
+        if server.returncode:
+            raise RuntimeError(f'Server exited with code {server.returncode}; last observed cycle {snapshot.get("cycle",0)}; see server.log and team logs')
         parsed=analyze(folder/'match.rcg')
         if not parsed['natural_end'] or parsed['scores'] is None or min(parsed['max_players'].values())<11:
             raise RuntimeError('Game did not finish normally with both complete teams')
@@ -118,9 +160,15 @@ def run_job(job,write):
             for g in range(1,config['games_per_round']+1):
                 if cancel.is_set(): raise Cancelled()
                 entry={'round':r,'game':g,'left_team':config['left']['name'],'right_team':config['right']['name']}
-                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel))
+                def progress(info):
+                    state['progress']=dict(info,round=r,game=g,match_index=len(state['matches'])+1)
+                    write(job)
+                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress))
                 except Cancelled: entry.update(status='cancelled'); state['matches'].append(entry); raise
-                except Exception as exc: entry.update(status='failed',error=str(exc))
+                except Exception as exc:
+                    entry.update(status='failed',error=str(exc))
+                    entry['last_observed']=state.get('progress',{}).copy()
+                state.pop('progress',None)
                 state['matches'].append(entry); state['summary']=summary(state['matches']); write(job)
         failures=sum(m['status']!='completed' for m in state['matches'])
         state['status']='failed' if failures else 'completed'

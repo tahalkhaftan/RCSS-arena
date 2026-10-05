@@ -13,6 +13,18 @@ class FakeGitHub:
 class Cloud(unittest.TestCase):
     def test_failure_before_runner_is_visible(self):
         CACHE.clear();s=state(FakeGitHub(),7);self.assertEqual(s['status'],'failed');self.assertFalse(s['archive_ready'])
+    def test_atomic_live_state_does_not_depend_on_asset_replacement(self):
+        import json
+        live={'id':'7','status':'running','matches':[], 'progress':{'cycle':1234},'total':1}
+        class Storage(FakeGitHub):
+            def release(self,i): return dict(super().release(i),body=json.dumps({'arena_state':live}))
+            def read_asset(self,a): raise AssertionError('Live state must not download a stale report')
+            def json(self,p): return {'workflow_runs':[]}
+        CACHE.clear(); result=state(Storage(),7)
+        self.assertEqual(result['progress']['cycle'],1234)
+        self.assertEqual(result['status'],'running')
+        self.assertFalse(result['archive_ready'])
+
     def test_strip_secret_on_asset_redirect(self):
         req=Request('https://api.github.com/test',headers={'Authorization':'Bearer secret'})
         redirect=SafeRedirect().redirect_request(req,None,302,'',{},'https://release-assets.githubusercontent.com/test')

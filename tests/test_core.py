@@ -23,6 +23,22 @@ class Core(unittest.TestCase):
             self.assertEqual(result['scores'],[2,1])
             self.assertEqual(result['possession']['left_percent'],100)
 
+    def test_real_xpm_graphic_does_not_break_match_result(self):
+        # Exact format written by RCSS 19: nested quotes are not escaped.
+        graphic='(msg 0 1 "(team_graphic_l (31 7 "8 8 1 1" "  c None" "        ")")\n'
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'match.rcg'
+            p.write_text(HEADER+graphic+show(1,.5,4)+'(playmode 6000 time_over)\n(team 6000 A B 11 0)\n')
+            result=analyze(p)
+            self.assertTrue(result['natural_end'])
+            self.assertEqual(result['scores'],[11,0])
+            self.assertEqual(result['possession']['left_percent'],100)
+
+    def test_corrupt_game_state_still_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'match.rcg';p.write_text(HEADER+'(show 1 ((b) 0 0\n')
+            with self.assertRaisesRegex(ValueError,'RCG line'): analyze(p)
+
     def test_possession_categories_and_final_score(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'match.rcg';p.write_text(HEADER+show(1,.5,4)+show(2,4,.5)+show(3,.5,.5)+show(4,4,4)+'(playmode 5 time_over)\n(team 5 A B 2 1)\n')

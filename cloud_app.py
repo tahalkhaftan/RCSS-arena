@@ -16,7 +16,11 @@ def state(gh,ident,workflow=None):
     rel=gh.release(ident)
     if not rel['tag_name'].startswith('arena-'):raise ValueError('Not an Arena test')
     assets=gh.assets(ident)
-    if 'results.json' in assets:s=json.loads(gh.read_asset(assets['results.json']))
+    try: metadata=json.loads(rel.get('body') or '{}')
+    except (ValueError,TypeError): metadata={}
+    live=metadata.get('arena_state')
+    if isinstance(live,dict) and str(live.get('id'))==str(ident): s=live
+    elif 'results.json' in assets:s=json.loads(gh.read_asset(assets['results.json']))
     else:
         config=json.loads(gh.read_asset(assets['config.json']))
         s={'id':str(ident),'status':'queued','total':config['rounds']*config['games_per_round'],'config':config,'matches':[],'started_at':rel['created_at'],'archive_ready':False}
@@ -28,6 +32,7 @@ def state(gh,ident,workflow=None):
             s['workflow_url']=run['html_url']
             if run['status']=='completed':
                 s['status']='cancelled' if run['conclusion']=='cancelled' else 'failed'
+                s['publication_pending']=False
                 s['error']='Workflow finished without a completed report; inspect Actions logs.'
     s['archive_ready']='logs.zip' in assets
     CACHE[ident]=(now,s);return s

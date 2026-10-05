@@ -1,0 +1,21 @@
+name: Repair completed real match report
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/repair.yml']
+permissions:
+  contents: read
+jobs:
+  repair:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s tests -v
+      - run: python3 repair_report.py
+        env:
+          STORAGE_TOKEN: ${{ secrets.STORAGE_TOKEN }}
+          STORAGE_REPOSITORY: ${{ vars.STORAGE_REPOSITORY }}
+          RELEASE_ID: '404050602'

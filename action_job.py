@@ -20,10 +20,15 @@ def main():
     assets=gh.assets(ident);config=validate(json.loads(gh.read_asset(assets['config.json'])))
     if config['rounds']*config['games_per_round']>50:raise ValueError('Maximum 50 matches')
     root=Path('job-data').resolve();root.mkdir(exist_ok=True)
-    state={'id':str(ident),'status':'queued','demo':False,'server_version':'19.0.0','config':config,'matches':[],'total':config['rounds']*config['games_per_round'],'started_at':rel['created_at'],'archive_ready':False}
+    state={'id':str(ident),'status':'queued','demo':False,'server_version':'19.0.0','config':config,'matches':[],'total':config['rounds']*config['games_per_round'],'started_at':rel['created_at'],'archive_ready':False,'publication_pending':True}
     def write(job):
         content=json.dumps(state,ensure_ascii=False,indent=2).encode();(root/'results.json').write_bytes(content)
-        gh.put(ident,'results.json',content,'application/json')
+        # Release metadata gives atomic live updates without deleting/re-uploading an asset.
+        try:
+            gh.json('/releases/'+str(ident),'PATCH',{'body':json.dumps({'arena_state':state},ensure_ascii=False)})
+        except Exception:
+            if not state.get('publication_pending'): raise
+            print('Live report update delayed; the final report will be retried.',flush=True)
     try:
         for side in ('left','right'):
             dest=root/'teams'/side;extract(gh.read_asset(assets[side+'.zip']),dest)
@@ -33,8 +38,12 @@ def main():
         for key in ('GITHUB_TOKEN','STORAGE_TOKEN','ARENA_PASSWORD','ARENA_USER'):os.environ.pop(key,None)
         run_job(job,write)
         # bytes uploaded only after archive was closed.
-        gh.put(ident,'logs.zip',(root/'logs.zip').read_bytes(),'application/zip');state['archive_ready']=True;write(job)
+        gh.put(ident,'logs.zip',(root/'logs.zip').read_bytes(),'application/zip')
+        state.update(archive_ready=True,publication_pending=False)
+        gh.put(ident,'results.json',json.dumps(state,ensure_ascii=False,indent=2).encode(),'application/json')
+        write(job)
     except Exception as e:
-        state.update(status='failed',error=str(e));write({'state':state})
+        state.update(status='failed',error=str(e),publication_pending=False);write({'state':state})
         raise SystemExit('Match job failed; details are available inside the authenticated Arena portal.')
+    if state['status']=='failed': raise SystemExit('Matches failed; the private Arena report contains the specific errors and logs.')
 if __name__=='__main__':main()

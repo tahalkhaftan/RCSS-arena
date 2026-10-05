@@ -37,9 +37,13 @@ def analyze(path):
     with open(path,encoding='utf-8') as stream:
         if stream.readline().strip() not in ('ULG4','ULG5'):
             raise ValueError('Expected a text RCG log (ULG4/5)')
-        for line in stream:
-            if not line.strip(): continue
-            rec = sexpr(line)
+        for line_number,line in enumerate(stream,2):
+            # RCSS writes team graphics inside msg records using unescaped XPM
+            # quotes. They are display payloads, not football state S-expressions.
+            # Parse only records needed for scores, completion and possession.
+            if not re.match(r'^\s*\((server_param|player_type|team|playmode|show)\s',line): continue
+            try: rec = sexpr(line)
+            except ValueError as exc: raise ValueError(f'Invalid game-state record at RCG line {line_number}: {exc}') from exc
             if not rec: continue
             kind = rec[0]
             if kind=='server_param': sp.update(params(rec))
