@@ -1,4 +1,5 @@
 name: Inspect private match failure
+# Capture the actual failing RCG records.
 on:
   push:
     branches: [main]
