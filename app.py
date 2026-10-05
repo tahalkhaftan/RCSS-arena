@@ -36,22 +36,59 @@ def recover():
         job={'root':p.parent,'state':state,'cancel':threading.Event()}; JOBS[p.parent.name]=job; write(job)
 
 def extract(blob,dest):
+    dest=dest.resolve()
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         infos=z.infolist()
         if len(infos)>20000 or sum(i.file_size for i in infos)>1024**3: raise ValueError('ZIP extracted size exceeds 1 GiB or too many files')
+        entries=[]; links={}; seen=set()
         for i in infos:
             name=i.filename
             if '\\' in name or name.startswith('/') or '..' in Path(name).parts or '\x00' in name: raise ValueError('Unsafe ZIP path')
-            mode=i.external_attr>>16
-            if stat.S_ISLNK(mode) or (stat.S_IFMT(mode) not in (0,stat.S_IFREG,stat.S_IFDIR)): raise ValueError('ZIP symlinks/special files are not supported')
-            target=(dest/name).resolve()
-            if not target.is_relative_to(dest.resolve()): raise ValueError('Unsafe ZIP path')
-            if i.is_dir(): target.mkdir(parents=True,exist_ok=True); continue
+            # The upper attribute bits describe Unix modes only for Unix ZIPs.
+            mode=(i.external_attr>>16) if i.create_system==3 else 0
+            target=dest/name
+            if target==dest or target in seen: raise ValueError('Duplicate/empty ZIP path: '+name)
+            seen.add(target)
+            if not target.resolve().is_relative_to(dest): raise ValueError('Unsafe ZIP path')
+            if stat.S_ISLNK(mode):
+                if i.file_size>4096: raise ValueError('ZIP symlink target too long: '+name)
+                link=z.read(i).decode('utf-8')
+                if not link or '\x00' in link or '\\' in link or Path(link).is_absolute():
+                    raise ValueError('Unsafe ZIP symlink: '+name)
+                resolved=(target.parent/link).resolve()
+                if not resolved.is_relative_to(dest): raise ValueError('ZIP symlink escapes team folder: '+name)
+                links[target]=link
+            elif stat.S_IFMT(mode) not in (0,stat.S_IFREG,stat.S_IFDIR):
+                raise ValueError('ZIP special file is not supported: '+name)
+            else: entries.append((i,target,mode))
+        # Never write archive entries through a symlink from that archive.
+        for target in seen:
+            if any(parent in links for parent in target.parents):
+                raise ValueError('ZIP path is inside a symlink: '+str(target.relative_to(dest)))
+        for i,target,mode in entries:
+            if i.is_dir() or stat.S_ISDIR(mode): target.mkdir(parents=True,exist_ok=True); continue
             target.parent.mkdir(parents=True,exist_ok=True)
             with z.open(i) as src,open(target,'wb') as out: shutil.copyfileobj(src,out)
             # ZIP uploads often lose exec bits; grant owner execution for ELF/scripts.
             with target.open('rb') as f: head=f.read(4)
-            target.chmod(0o700 if head.startswith((b'\x7fELF',b'#!')) or target.suffix=='.sh' else 0o600)
+            target.chmod(0o700 if mode&0o111 or head.startswith((b'\x7fELF',b'#!')) or target.suffix=='.sh' else 0o600)
+        # Resolve library link chains after all regular files have been extracted.
+        pending=dict(links)
+        while pending:
+            progress=False
+            for target,link in list(pending.items()):
+                resolved=(target.parent/link).resolve()
+                if not resolved.is_relative_to(dest): raise ValueError('ZIP symlink escapes team folder: '+str(target.relative_to(dest)))
+                if resolved.exists():
+                    target.parent.mkdir(parents=True,exist_ok=True)
+                    if target.exists() or target.is_symlink(): raise ValueError('ZIP symlink conflicts with existing file: '+str(target.relative_to(dest)))
+                    target.symlink_to(link); del pending[target]; progress=True
+            if not progress: raise ValueError('ZIP symlink target missing or cyclic: '+str(next(iter(pending)).relative_to(dest)))
+        # Another link can change the meaning of '..' in a previously made link.
+        for target in links:
+            resolved=target.resolve()
+            if not resolved.is_relative_to(dest) or not resolved.exists():
+                raise ValueError('Unsafe/missing ZIP symlink target: '+str(target.relative_to(dest)))
 
 def validate(c):
     for key in ('rounds','games_per_round'):
