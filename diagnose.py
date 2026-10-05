@@ -34,13 +34,15 @@ def main():
     gh.put(release['id'],'diagnostic.zip',(root/'logs.zip').read_bytes(),'application/zip')
     gh.put(release['id'],'results.json',(root/'results.json').read_bytes(),'application/json')
     # Only public server function names and diagnostic categories enter Actions logs.
-    report={'source':source,'diagnostic_release':release['id'],'status':state['status'],'server_frames':[],'team_loader_error':False,'team_intercept_error':False,'team_segfault':False}
+    report={'source':source,'diagnostic_release':release['id'],'status':state['status'],'match_errors':[m.get('error') for m in state['matches']],'server_frames':[],'server_setup_errors':[],'team_loader_error':False,'team_intercept_error':False,'team_segfault':False}
     for p in (root/'logs').rglob('*.log'):
         text=p.read_text(errors='replace')
         if p.name=='server.log':
             for line in text.splitlines():
                 if line.startswith('#'):
                     report['server_frames'].append(re.sub(r'\s*\(.*','',line)[:250])
+                elif any(word in line.lower() for word in ('error','not found','no such','invalid','undefined','permission','unrecognized')):
+                    report['server_setup_errors'].append(line[:500])
         else:
             report['team_loader_error'] |= 'error while loading shared libraries:' in text
             report['team_intercept_error'] |= 'no intercept evaluator' in text

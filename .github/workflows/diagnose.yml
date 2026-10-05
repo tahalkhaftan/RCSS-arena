@@ -1,4 +1,5 @@
 name: RCSS Crash Diagnostic
+# Include debugger startup errors as well as stack frames.
 on:
   push:
     branches: [main]
