@@ -7,6 +7,19 @@ vm.runInContext(fs.readFileSync('static/index.html','utf8').split('<script>')[1]
 vm.runInContext(`report={status:'running',total:1,matches:[],progress:{cycle:3000,expected_cycles:6000,percent:50,match_index:1,left_score:2,right_score:1}};render();`,context);
 assert.equal(el('bar').style.width,'50%');
 assert.ok(el('liveProgress').textContent.includes('3000'));
+vm.runInContext(`presetTeams=[{id:'hades2d2025',name:'hades2d2025',directory:'hades2d/bin/',command:'./start.sh',archive:'hades2d2025.zip'}];`,context);
+el('leftPreset').value='hades2d2025';
+vm.runInContext("choosePreset('left')",context);
+assert.equal(el('leftDir').value,'hades2d/bin/');
+assert.equal(el('leftCmd').value,'./start.sh');
+assert.equal(el('leftDir').readOnly,true);
+assert.equal(el('leftFile').disabled,true);
+assert.ok(el('leftPresetInfo').textContent.includes('hades2d2025.zip'));
+el('leftPreset').value='';
+vm.runInContext("choosePreset('left')",context);
+assert.equal(el('leftDir').readOnly,false);
+assert.equal(el('leftFile').disabled,false);
+
 const final={status:'completed',id:'7',total:1,matches:[{round:1,game:1,status:'completed',left_score:13,right_score:2}],archive_ready:true,publication_pending:false};
 let count=0;context.fetch=async()=>{
  count++;

@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from app import Handler as BaseHandler,validate
 from github_api import GitHub,storage_client,is_arena_release
 from pathlib import Path
+from presets import catalog,resolve_teams
 LOCK=threading.Lock();CACHE={}
 
 def state(gh,ident,workflow=None):
@@ -43,6 +44,8 @@ class Handler(BaseHandler):
         if path in ('/','/index.html','/healthz'):return super().do_GET()
         if not self.auth():return
         try:
+            if path=='/api/teams':
+                return self.send(200,[{k:t[k] for k in ('id','name','directory','command','archive')} for t in catalog()])
             workflow=GitHub();gh=storage_client();gh.require_private()
             if path=='/api/tests':
                 rels=gh.json('/releases?per_page=100');rows=[]
@@ -90,9 +93,10 @@ class Handler(BaseHandler):
             payload=self.rfile.read(length)
             msg=BytesParser(policy=default).parsebytes(('Content-Type: '+ctype+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+payload)
             fields={p.get_param('name',header='content-disposition'):p.get_payload(decode=True) for p in msg.iter_parts()}
-            config=validate(json.loads(fields['config']))
+            config=json.loads(fields['config'])
+            teams=resolve_teams(config,fields)
+            config=validate(config)
             if config['rounds']*config['games_per_round']>50:raise ValueError('Free version: maximum 50 matches per request')
-            if any(not fields.get(s+'_file') for s in ('left','right')):raise ValueError('Both ZIP files required')
             # Single Render instance; avoid concurrent requests while creating release.
             with LOCK:
                 runs=workflow.json('/actions/workflows/matches.yml/runs?per_page=100')['workflow_runs']
@@ -101,7 +105,7 @@ class Handler(BaseHandler):
                 rel=gh.json('/releases','POST',{'tag_name':tag,'name':tag,'draft':True})
                 ident=rel['id']
                 try:
-                    for side in ('left','right'):gh.put(ident,side+'.zip',fields[side+'_file'])
+                    for side in ('left','right'):gh.put(ident,side+'.zip',teams[side])
                     gh.put(ident,'config.json',json.dumps(config).encode(),'application/json')
                     workflow.json('/actions/workflows/matches.yml/dispatches','POST',{'ref':os.environ.get('GITHUB_REF','main'),'inputs':{'release_id':str(ident)}})
                 except Exception:

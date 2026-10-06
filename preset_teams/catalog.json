@@ -1,0 +1,80 @@
+[
+  {
+    "id": "AITech-2D",
+    "name": "AITech-2D",
+    "archive": "AITech-2D.zip",
+    "directory": "AITech-2D/",
+    "command": "./localStartAll",
+    "sha256": "66685dd366305296ae22401e42fea036ba65a065009312bd84bf2e5ca41dd11d"
+  },
+  {
+    "id": "CYRUS",
+    "name": "CYRUS",
+    "archive": "CYRUS.zip",
+    "directory": "CYRUS/",
+    "command": "./localStartAll",
+    "sha256": "432b89e6b83202ba756fe3c7c5092705cb3ff47c9f6f44d9b73dbc9453ed8fa8"
+  },
+  {
+    "id": "CambysesI",
+    "name": "CambysesI",
+    "archive": "CambysesI.zip",
+    "directory": "CambysesI/",
+    "command": "./localStartAll",
+    "sha256": "43c4b1111af5468190671da96f4932c9aa2d4fd8aecc238e96fbcce10e539818"
+  },
+  {
+    "id": "Hades2D",
+    "name": "Hades2D",
+    "archive": "Hades2D.zip",
+    "directory": "Hades2D/",
+    "command": "./localStartAll",
+    "sha256": "070dfe137dec81f0b3510cb695326f2212e367cb18226bf7c00a7d777b4a8029",
+    "parts": [
+      "Hades2D.zip.part01",
+      "Hades2D.zip.part02",
+      "Hades2D.zip.part03"
+    ]
+  },
+  {
+    "id": "IAU_Center",
+    "name": "IAU_Center",
+    "archive": "IAU_Center.zip",
+    "directory": "IAU_Center/",
+    "command": "./localStartAll",
+    "sha256": "84a9cd4d2076b8987bfaee2082a6562ed24fd76bdcef558ee0a4a4ce3bd96f27",
+    "parts": [
+      "IAU_Center.zip.part01",
+      "IAU_Center.zip.part02",
+      "IAU_Center.zip.part03"
+    ]
+  },
+  {
+    "id": "TechRobot",
+    "name": "TechRobot",
+    "archive": "TechRobot.zip",
+    "directory": "TechRobot/",
+    "command": "./localStartAll",
+    "sha256": "8bd2a4a95209e9882408761e954698a3db2b86398bcbf0ac22c220d713998102"
+  },
+  {
+    "id": "hades2d2025",
+    "name": "hades2d2025",
+    "archive": "hades2d2025.zip",
+    "directory": "hades2d/bin/",
+    "command": "./start.sh",
+    "sha256": "004464e55d6ec52fab6e61fec8e8021537827a928aaed843335ddd2571e72026",
+    "parts": [
+      "hades2d2025.zip.part01",
+      "hades2d2025.zip.part02"
+    ]
+  },
+  {
+    "id": "yushan2025",
+    "name": "yushan2025",
+    "archive": "yushan2025.zip",
+    "directory": "yushan2025/bin/",
+    "command": "./localStartAll",
+    "sha256": "47a02578424736b0d9cf436bb0c1ec64d5c3d67a2bd364227f718fe8d36f399a"
+  }
+]
