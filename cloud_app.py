@@ -10,6 +10,8 @@ from pathlib import Path
 from presets import catalog,resolve_teams
 from replay import asset_name,encode_replay
 import tempfile,zipfile
+from live import connection_info,valid_token,RELAY,VIEWERS
+import re
 LOCK=threading.Lock();CACHE={}
 REPLAY_LOCK=threading.Lock();REPLAY_CACHE={}
 
@@ -88,6 +90,8 @@ class Handler(BaseHandler):
         if path in ('/','/index.html','/healthz'):return super().do_GET()
         if not self.auth():return
         try:
+            live_match=re.fullmatch(r'/api/tests/(\d+)/live',path)
+            if live_match:return self.stream_live(live_match[1])
             if path=='/api/teams':
                 return self.send(200,[{k:t[k] for k in ('id','name','directory','command','archive')} for t in catalog()])
             workflow=GitHub();gh=storage_client();gh.require_private()
@@ -97,7 +101,6 @@ class Handler(BaseHandler):
                     if is_arena_release(rel):
                         rows.append({'id':str(rel['id']),'status':'unknown','started_at':rel['created_at']})
                 return self.send(200,rows)
-            import re
             replay_match=re.fullmatch(r'/api/tests/(\d+)/replay/(\d+)/(\d+)',path)
             if replay_match:
                 ident,r,g=map(int,replay_match.groups())
@@ -127,13 +130,41 @@ class Handler(BaseHandler):
                     self.wfile.write(chunk)
         except urllib.error.HTTPError as e:self.send(502,{'error':'GitHub API: '+str(e.code)})
         except Exception as e:self.send(400,{'error':str(e)})
+    def stream_live(self,ident):
+        if not VIEWERS.acquire(blocking=False):return self.send(503,{'error':'Too many live viewers'})
+        try:
+            self.connection.settimeout(15)
+            self.send_response(200)
+            self.send_header('Content-Type','text/event-stream; charset=utf-8')
+            self.send_header('Cache-Control','no-cache, no-transform')
+            self.send_header('X-Accel-Buffering','no')
+            self.end_headers();self.wfile.write(b'retry: 1000\n\n');self.wfile.flush()
+            sequence=0;deadline=time.monotonic()+120
+            while time.monotonic()<deadline:
+                sequence,payload=RELAY.wait(ident,sequence)
+                message=('data: '+json.dumps(payload,separators=(',',':'))+'\n\n').encode() if payload else b': keepalive\n\n'
+                self.wfile.write(message);self.wfile.flush()
+        except (OSError,TimeoutError):pass
+        finally:VIEWERS.release();self.close_connection=True
+
     def do_POST(self):
+        path=urlparse(self.path).path
+        live_match=re.fullmatch(r'/api/live/(\d+)',path)
+        if live_match:
+            ident=live_match[1];header=self.headers.get('Authorization','')
+            if not header.startswith('Bearer ') or not valid_token(ident,header[7:]):return self.send(403,{'error':'Invalid live token'})
+            try:
+                length=int(self.headers.get('Content-Length',0))
+                if not 0<length<=65536:return self.send(413,{'error':'Live batch too large'})
+                self.connection.settimeout(5)
+                RELAY.publish(ident,json.loads(self.rfile.read(length)))
+                return self.send(200,{'ok':True})
+            except (ValueError,TypeError,KeyError,OSError):return self.send(400,{'error':'Invalid live batch'})
         if not self.auth():return
         origin=self.headers.get('Origin')
         if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.send(403,{'error':'Cross-origin request rejected'})
         path=urlparse(self.path).path
         try:
-            import re
             workflow=GitHub();gh=storage_client();gh.require_private();m=re.fullmatch(r'/api/tests/(\d+)/cancel',path)
             if m:
                 rel=gh.release(m[1])
@@ -163,6 +194,8 @@ class Handler(BaseHandler):
                 try:
                     for side in ('left','right'):gh.put(ident,side+'.zip',teams[side])
                     gh.put(ident,'config.json',json.dumps(config).encode(),'application/json')
+                    connection=connection_info(ident)
+                    if connection:gh.put(ident,'live.json',json.dumps(connection).encode(),'application/json')
                     workflow.json('/actions/workflows/matches.yml/dispatches','POST',{'ref':os.environ.get('GITHUB_REF','main'),'inputs':{'release_id':str(ident)}})
                 except Exception:
                     gh.json('/releases/'+str(ident),'DELETE');raise

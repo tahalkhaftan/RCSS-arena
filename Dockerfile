@@ -2,7 +2,7 @@
 FROM python:3.12-slim
 RUN useradd -m -u 10001 arena && mkdir /app && chown arena:arena /app
 WORKDIR /app
-COPY --chown=arena:arena app.py cloud_app.py github_api.py runner.py analysis.py presets.py replay.py ./
+COPY --chown=arena:arena app.py cloud_app.py github_api.py runner.py analysis.py presets.py replay.py live.py ./
 COPY --chown=arena:arena static ./static
 COPY --chown=arena:arena preset_teams ./preset_teams
 USER arena

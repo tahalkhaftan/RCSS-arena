@@ -66,7 +66,7 @@ def monitor_snapshot(text, previous=None):
     return snapshot
 
 
-def run_match(config,teams,folder,cancel,progress=None):
+def run_match(config,teams,folder,cancel,progress=None,live=None):
     folder.mkdir(parents=True); procs=[]; files=[]
     env=os.environ.copy(); env.update(RCSS_HOST='127.0.0.1',RCSS_PORT='6000',RCSS_COACH_PORT='6001',RCSS_OLCOACH_PORT='6002')
     # Dedicated instance: one match uses the standard ports. No public UDP needed.
@@ -90,13 +90,17 @@ def run_match(config,teams,folder,cancel,progress=None):
         # Read-only UDP monitor supplies connection counts, without a graphical monitor.
         monitor_addr=None
         snapshot={'cycle':0,'percent':0,'expected_cycles':6000,'stage':'connecting'}
-        published=0
+        published=0;live_published=0
         def observe(data, force=False):
-            nonlocal snapshot,published
+            nonlocal snapshot,published,live_published
             text=data.rstrip(b'\0').decode('utf-8',errors='replace')
             try: snapshot=monitor_snapshot(text,snapshot)
             except (ValueError,IndexError,TypeError): return
             now=time.monotonic()
+            if live and text.startswith('(show ') and now-live_published>=.1:
+                try:live(snapshot['frame'])
+                except Exception:pass
+                live_published=now
             if progress and (force or now-published>=10):
                 progress(dict(snapshot)); published=now
         def wait_for(side=None,timeout=35):
@@ -165,7 +169,8 @@ def run_job(job,write):
                 def progress(info):
                     state['progress']=dict(info,round=r,game=g,match_index=len(state['matches'])+1)
                     write(job)
-                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress))
+                live_options={'live':lambda frame:job['live'].submit(r,g,frame)} if job.get('live') else {}
+                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress,**live_options))
                 except Cancelled: entry.update(status='cancelled'); state['matches'].append(entry); raise
                 except Exception as exc:
                     entry.update(status='failed',error=str(exc))

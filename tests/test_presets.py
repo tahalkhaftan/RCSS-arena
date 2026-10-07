@@ -54,7 +54,7 @@ class Presets(unittest.TestCase):
                 dispatch.append(body)
         config={'left':{'preset_id':'AITech-2D'},'right':{'preset_id':'CambysesI'},'rounds':1,'games_per_round':1,'synch_mode':False}
         payload=('--fixture\r\nContent-Disposition: form-data; name="config"\r\n\r\n'+json.dumps(config)+'\r\n--fixture--\r\n').encode()
-        with patch.dict(os.environ,{'ARENA_USER':'test','ARENA_PASSWORD':'test','GITHUB_REF':'main'}),patch('cloud_app.storage_client',return_value=Storage()),patch('cloud_app.GitHub',return_value=Workflow()):
+        with patch.dict(os.environ,{'ARENA_USER':'test','ARENA_PASSWORD':'test','GITHUB_REF':'main','RENDER_EXTERNAL_URL':'https://arena.example'}),patch('cloud_app.storage_client',return_value=Storage()),patch('cloud_app.GitHub',return_value=Workflow()):
             server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
             threading.Thread(target=server.serve_forever,daemon=True).start()
             def request(path,data=None):
@@ -66,6 +66,8 @@ class Presets(unittest.TestCase):
                 saved=json.loads(uploads['config.json'])
                 self.assertEqual(saved['left']['command'],'./localStartAll')
                 self.assertEqual(saved['right']['directory'],'CambysesI/')
-                self.assertEqual(set(uploads),{'left.zip','right.zip','config.json'})
+                self.assertEqual(set(uploads),{'left.zip','right.zip','config.json','live.json'})
+                self.assertEqual(json.loads(uploads['live.json'])['url'],'https://arena.example/api/live/77')
+                self.assertNotIn('token',saved)
                 self.assertEqual(dispatch[0]['inputs']['release_id'],'77')
             finally:server.shutdown();server.server_close()

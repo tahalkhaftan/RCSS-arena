@@ -86,7 +86,10 @@ class Lifecycle(unittest.TestCase):
                 c[side]={'directory':'.','command':f'touch "{folder}/{side}-ready"'}
             with patch.dict(os.environ,{'RCSSSERVER':str(fake),'MATCH_TIMEOUT_SECONDS':'10'}):
                 updates=[]
-                result=run_match(c,teams,folder,threading.Event(),updates.append)
+                frames=[]
+                result=run_match(c,teams,folder,threading.Event(),updates.append,frames.append)
+                self.assertTrue(frames)
+                self.assertEqual(frames[-1]['cycle'],1)
             self.assertTrue(updates)
             self.assertTrue(any(u.get('stage')=='playing' for u in updates))
             self.assertEqual(result['status'],'completed');self.assertEqual(result['left_score'],2);self.assertTrue((folder/'left.log').exists());self.assertEqual(result['possession']['free_percent'],100)

@@ -5,6 +5,7 @@ from github_api import storage_client,is_arena_release
 from app import extract,validate
 from runner import run_job
 from replay import asset_name
+from live import LivePublisher
 
 class RemoteCancel:
     def __init__(self,gh,ident):self.gh=gh;self.ident=ident;self.next=0;self.value=False
@@ -22,6 +23,10 @@ def main():
     if config['rounds']*config['games_per_round']>50:raise ValueError('Maximum 50 matches')
     root=Path('job-data').resolve();root.mkdir(exist_ok=True)
     state={'id':str(ident),'status':'queued','demo':False,'server_version':'19.0.0','config':config,'matches':[],'total':config['rounds']*config['games_per_round'],'started_at':rel['created_at'],'archive_ready':False,'publication_pending':True}
+    publisher=None
+    if 'live.json' in assets:
+        try:publisher=LivePublisher(json.loads(gh.read_asset(assets['live.json'])))
+        except Exception:print('Direct live feed unavailable; periodic reports remain enabled.',flush=True)
     published_replays=set()
     def write(job):
         # Publish each finished game's replay before proceeding to the next game.
@@ -46,7 +51,7 @@ def main():
         for side in ('left','right'):
             dest=root/'teams'/side;extract(gh.read_asset(assets[side+'.zip']),dest)
             if not (dest/config[side]['directory']).is_dir():raise ValueError('Folder missing: '+side)
-        job={'state':state,'root':root,'cancel':RemoteCancel(gh,ident)}
+        job={'state':state,'root':root,'cancel':RemoteCancel(gh,ident),'live':publisher}
         # Prevent site secrets/token being inherited by player processes.
         for key in ('GITHUB_TOKEN','STORAGE_TOKEN','ARENA_PASSWORD','ARENA_USER'):os.environ.pop(key,None)
         run_job(job,write)
@@ -58,5 +63,7 @@ def main():
     except Exception as e:
         state.update(status='failed',error=str(e),publication_pending=False);write({'state':state})
         raise SystemExit('Match job failed; details are available inside the authenticated Arena portal.')
+    finally:
+        if publisher:publisher.close()
     if state['status']=='failed': raise SystemExit('Matches failed; the private Arena report contains the specific errors and logs.')
 if __name__=='__main__':main()

@@ -22,7 +22,7 @@
 <section class="card status"><div class="buttons"><button class="btn" id="recent">بازیابی آخرین تست</button></div><p class="foot">بعد از بستن صفحه، برای دیدن نتیجهٔ تست قبلی از این دکمه استفاده کن.</p></section>
 <section class="card status" aria-live="polite"><div class="statusline"><span id="status">آمادهٔ شروع</span><span id="counter">0 / 5</span></div><div class="track" role="progressbar" aria-label="پیشرفت تست" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="bar"></div></div><p class="foot" id="liveProgress">پیشرفت مسابقه پس از اتصال تیم‌ها نمایش داده می‌شود.</p><div id="error" role="alert"></div></section>
 <section class="card monitor" id="matchMonitor" aria-label="مانیتور مسابقه">
-<div class="result-head"><div><h2>مانیتور مسابقه</h2><p class="foot">نمایش زنده با به‌روزرسانی حدود هر ۱۰ ثانیه؛ بازپخش از لاگ واقعی هر بازی.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
+<div class="result-head"><div><h2>مانیتور مسابقه</h2><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
 <div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div>
 <div class="monitor-score" dir="ltr"><span id="monitorLeft">Left</span><strong id="monitorScore">— : —</strong><span id="monitorRight">Right</span></div>
 <canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
@@ -141,6 +141,7 @@ $('download').addEventListener('click',()=>{if(report)save(new Blob([JSON.string
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('json').textContent);$('copy').textContent='کپی شد';setTimeout(()=>$('copy').textContent='کپی JSON',1500)}catch{$('error').textContent='کپی خودکار در این مرورگر فعال نیست؛ JSON را انتخاب و کپی کن یا دانلود کن.'}});
 $('zip').addEventListener('click',async()=>{if(!job||!logReady)return;$('zip').disabled=true;try{const response=await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/logs.zip');save(await response.blob(),'rcss-logs-'+job.id.replace(/[^a-zA-Z0-9_-]/g,'_')+'.zip')}catch(e){$('error').textContent='دانلود لاگ ناموفق بود: '+e.message}finally{$('zip').disabled=false}});
 // The monitor is read-only. Frames never alter the recorded match results.
+const directLive={source:null,test:null,frames:new Map(),received:0,timers:[],watchdog:null};
 const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
 function monitorClear(){monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
@@ -203,15 +204,54 @@ async function loadMonitorReplay(){
  }catch(error){if(token===arenaMonitor.request){$('monitorInfo').textContent=error.message;$('monitorBadge').textContent='بازپخش آماده نیست';}}
  finally{if(token===arenaMonitor.request){arenaMonitor.loading=false;$('monitorLoad').disabled=false;}}
 }
+function stopDirectLive(){
+ directLive.source?.close();directLive.source=null;directLive.test=null;directLive.frames.clear();directLive.received=0;
+ for(const t of directLive.timers)clearTimeout(t);directLive.timers=[];
+ if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);directLive.watchdog=null;
+}
+function startDirectLive(){
+ if(typeof EventSource==='undefined'||!job||!report||report.demo)return;
+ if(!['queued','running'].includes(report.status)){stopDirectLive();return;}
+ const key=job.api+'/'+job.id;if(directLive.test===key)return;
+ stopDirectLive();directLive.test=key;
+ const source=new EventSource(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/live',{withCredentials:true});directLive.source=source;
+ source.onmessage=event=>{
+  if(directLive.source!==source)return;
+  let batch;try{batch=JSON.parse(event.data).frames;}catch{return;}
+  if(!Array.isArray(batch)||!batch.length)return;
+  for(const t of directLive.timers)clearTimeout(t);directLive.timers=[];
+  // Preserve a short batch's order, but never build up seconds of stale frames.
+  const now=Date.now(),frames=batch.filter(f=>!f.captured_at||now-f.captured_at*1000<5000).slice(-5);if(!frames.length)return;directLive.received=now;
+  frames.forEach((item,index)=>{
+   if(!item.frame||!Array.isArray(item.frame.players))return;
+   const show=()=>{
+    if(directLive.source!==source)return;
+    directLive.frames.set(item.round+'/'+item.game,{frame:item.frame,received:Date.now()});
+    if(directLive.frames.size>4)directLive.frames.delete(directLive.frames.keys().next().value);
+    if($('monitorMode').value==='live'&&arenaMonitor.key===item.round+'/'+item.game)monitorLive();
+   };
+   if(index===0)show();else directLive.timers.push(setTimeout(show,index*80));
+  });
+  if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);
+  directLive.watchdog=setTimeout(()=>{if($('monitorMode').value==='live')monitorLive();},4000);
+ };
+ source.onerror=()=>{if(directLive.source===source&&$('monitorMode').value==='live')monitorLive();};
+}
 function monitorLive(){
+ const fresh=directLive.frames.get(arenaMonitor.key);
+ if(fresh&&Date.now()-fresh.received<3500){
+  monitorDisplay(fresh.frame);$('monitorBadge').textContent='پخش مستقیم';
+  $('monitorInfo').textContent='دریافت پیوستهٔ موقعیت واقعی توپ و بازیکن‌ها — سایکل '+fresh.frame.cycle;return;
+ }
  const live=report?.progress;
  if(live&&live.round+'/'+live.game===arenaMonitor.key&&live.frame){
   monitorDisplay({...live.frame,score:[live.left_score??live.frame.score[0],live.right_score??live.frame.score[1]],names:live.server_team_names||live.frame.names});
-  $('monitorBadge').textContent='زنده با تأخیر';$('monitorInfo').textContent='آخرین داده: '+(live.updated_at||'—')+' — به‌روزرسانی حدود هر ۱۰ ثانیه';
+  $('monitorBadge').textContent='گزارش دوره‌ای';$('monitorInfo').textContent='در انتظار اتصال مستقیم؛ آخرین گزارش: '+(live.updated_at||'—')+' — در قطع ارتباط، به‌روزرسانی حدود هر ۱۰ ثانیه';
  }else{monitorDisplay(null);$('monitorBadge').textContent='بدون دادهٔ زنده';$('monitorInfo').textContent=selectedMatch()?'این بازی پایان یافته؛ «دریافت بازپخش» را بزن.':live&&live.round+'/'+live.game===arenaMonitor.key?'این اجرا هنوز دادهٔ زمین نفرستاده؛ منتظر به‌روزرسانی بمان یا پس از پایان، بازپخش را دریافت کن.':'این بازی هنوز شروع نشده است.';}
 }
 function updateMonitor(){
  if(!$('pitch').getContext||!report)return;
+ startDirectLive();
  const test=String(report.id||'');
  if(test!==arenaMonitor.test){arenaMonitor.request++;arenaMonitor.loading=false;arenaMonitor.test=test;arenaMonitor.key='';arenaMonitor.signature='';monitorClear();}
  const rounds=Number(report.config?.rounds||1),games=Number(report.config?.games_per_round||report.total||1),rows=[];

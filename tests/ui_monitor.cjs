@@ -23,5 +23,17 @@ assert.equal(el('monitorMatch').options.length,2);assert.equal(el('monitorMatch'
  assert.equal(el('monitorScore').textContent,'0 : 0');assert.equal(el('monitorSeek').max,1);
  el('monitorSeek').value='1';el('monitorSeek').input();assert.equal(el('monitorScore').textContent,'2 : 1');
  assert.equal(state.matches[0].left_score,2,'Monitor must not change recorded results');
- console.log('Monitor game selection, live scores, replay seek and stale-request protection passed.');
+ // Direct stream updates the monitor independently of ten-second report polling.
+ const streams=[];context.EventSource=function(url){this.url=url;this.close=()=>this.closed=true;streams.push(this);};
+ el('monitorMatch').value='1/2';el('monitorMatch').change();
+ vm.runInContext('updateMonitor()',context);
+ assert.equal(streams.length,1);
+ streams[0].onmessage({data:JSON.stringify({frames:[{round:1,game:2,frame:{...frame,cycle:999,score:[4,1]},captured_at:Date.now()/1000}]})});
+ assert.equal(el('monitorScore').textContent,'4 : 1');assert.equal(el('monitorBadge').textContent,'پخش مستقیم');
+ vm.runInContext('updateMonitor()',context);
+ assert.equal(streams.length,1,'Report polls must not reconnect the live stream');
+ assert.equal(el('monitorScore').textContent,'4 : 1','A stale periodic report must not overwrite the live score');
+ vm.runInContext("report.status='completed';updateMonitor()",context);
+ assert.equal(streams[0].closed,true);
+ console.log('Monitor selection, replay, direct live frames and fallback isolation passed.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
