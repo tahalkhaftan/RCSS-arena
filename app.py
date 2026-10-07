@@ -18,14 +18,14 @@ from email.policy import default
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
-from runner import run_job
+from runner import run_job,results_only
 
 DATA=Path(os.environ.get('DATA_DIR','./data')).resolve(); DATA.mkdir(parents=True,exist_ok=True)
 JOBS={}; LOCK=threading.RLock(); UPLOAD_LIMIT=int(os.environ.get('MAX_UPLOAD_MB','256'))*1024**2
 
 def write(job):
     with LOCK:
-        p=job['root']/'results.json'; temp=p.with_suffix('.tmp'); temp.write_text(json.dumps(job['state'],ensure_ascii=False,indent=2),encoding='utf8'); temp.replace(p)
+        p=job['root']/'results.json'; temp=p.with_suffix('.tmp'); temp.write_text(json.dumps(results_only(job['state']),ensure_ascii=False,indent=2),encoding='utf8'); temp.replace(p)
 
 def recover():
     for p in DATA.glob('*/results.json'):

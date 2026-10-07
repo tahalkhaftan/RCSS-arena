@@ -10,6 +10,13 @@ from pathlib import Path
 from analysis import analyze, summary, sexpr
 from replay import show_frame,encode_replay
 
+def results_only(value):
+    """Copy results without the separate monitor/replay position data."""
+    if isinstance(value,dict):
+        return {k:results_only(v) for k,v in value.items() if k not in ('frame','frames','players','ball')}
+    if isinstance(value,list):return [results_only(v) for v in value]
+    return value
+
 class Cancelled(Exception): pass
 
 def kill_group(proc):

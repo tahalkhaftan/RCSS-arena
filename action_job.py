@@ -3,7 +3,7 @@ import json,os,threading,time
 from pathlib import Path
 from github_api import storage_client,is_arena_release
 from app import extract,validate
-from runner import run_job
+from runner import run_job,results_only
 from replay import asset_name
 from live import LivePublisher
 
@@ -40,7 +40,7 @@ def main():
             except Exception:
                 print('Replay publication delayed; match results are retained.',flush=True)
 
-        content=json.dumps(state,ensure_ascii=False,indent=2).encode();(root/'results.json').write_bytes(content)
+        content=json.dumps(results_only(state),ensure_ascii=False,indent=2).encode();(root/'results.json').write_bytes(content)
         # Release metadata gives atomic live updates without deleting/re-uploading an asset.
         try:
             gh.json('/releases/'+str(ident),'PATCH',{'body':json.dumps({'arena_state':state},ensure_ascii=False)})
@@ -58,7 +58,7 @@ def main():
         # bytes uploaded only after archive was closed.
         gh.put(ident,'logs.zip',(root/'logs.zip').read_bytes(),'application/zip')
         state.update(archive_ready=True,publication_pending=False)
-        gh.put(ident,'results.json',json.dumps(state,ensure_ascii=False,indent=2).encode(),'application/json')
+        gh.put(ident,'results.json',json.dumps(results_only(state),ensure_ascii=False,indent=2).encode(),'application/json')
         write(job)
     except Exception as e:
         state.update(status='failed',error=str(e),publication_pending=False);write({'state':state})
