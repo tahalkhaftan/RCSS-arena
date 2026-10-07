@@ -110,7 +110,7 @@ def run_match(config,teams,folder,cancel,progress=None):
                         f.seek(max(0,team_log.stat().st_size-8192))
                         lines=f.read().decode('utf-8',errors='replace').splitlines()
                     for line in lines:
-                        if 'error while loading shared libraries:' in line:
+                        if ('error while loading shared libraries:' in line or ('version ' in line and 'not found' in line) or 'cannot execute binary file' in line):
                             raise RuntimeError(('Left' if side=='l' else 'Right')+' team launch failed: '+line[:600])
                 if monitor_addr is None: monitor.sendto(b'(dispinit version 4)\0',('127.0.0.1',6000))
                 try: data,addr=monitor.recvfrom(65535)
