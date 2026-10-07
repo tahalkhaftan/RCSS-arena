@@ -6,6 +6,7 @@
 <style>
 :root{--bg:#080f1c;--panel:#111c2d;--line:#26344b;--text:#edf3ff;--muted:#a1b0c7;--blue:#62a9ff;--green:#4bddac;--red:#ff838b}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#183456 0,transparent 45%),var(--bg);color:var(--text);font-family:Tahoma,Arial,sans-serif;line-height:1.8}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}main{max-width:1120px;margin:auto;padding:32px 22px 60px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}.brand{font:bold 26px Arial;letter-spacing:1px}.brand span{color:var(--green)}h1{font-size:24px;margin:5px 0}h2{font-size:18px;margin:0}p{margin:7px 0;color:var(--muted)}.badge{border:1px solid #315245;background:#14372e;color:var(--green);border-radius:30px;padding:5px 13px;font-size:12px}.card{background:linear-gradient(135deg,#142135,#101a2b);border:1px solid var(--line);border-radius:20px;padding:24px}.teams{display:grid;grid-template-columns:1fr 1fr;gap:20px;direction:ltr}.team{direction:rtl}.team-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.side{font-size:12px;color:var(--blue)}.right .side{color:var(--green)}.upload{display:block;border:1px dashed #48617e;background:#0c1729;border-radius:14px;padding:22px 12px;text-align:center;cursor:pointer;margin:16px 0}.upload strong{display:block;font-size:14px}.upload small{color:var(--muted);display:block;overflow-wrap:anywhere}.upload input{display:block;margin:14px auto 0;max-width:100%;font-size:12px}label.field{display:block;font-size:13px;color:#c7d4e7;margin-top:13px}input:not([type=file]),select{width:100%;margin-top:6px;background:#091322;color:var(--text);border:1px solid #33435c;border-radius:10px;padding:11px 12px;outline:none}input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #62a9ff18}input.ltr{direction:ltr;text-align:left}.controls{margin-top:20px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.total{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);margin-top:22px;padding-top:20px;gap:15px}.total strong{color:var(--green);font-size:22px}.buttons{display:flex;gap:10px;flex-wrap:wrap}.btn{border:1px solid #34465f;background:#18263c;color:var(--text);border-radius:10px;padding:10px 18px;font-size:13px}.primary{background:var(--green);color:#042b20;border-color:var(--green);font-weight:bold}.secondary{background:transparent}.note{background:#172338;border-right:3px solid var(--blue);border-radius:8px;font-size:12px;padding:10px 14px;margin-top:18px;color:#b9c9e0}.connection{margin-bottom:20px}.connection summary{cursor:pointer;font-size:13px;color:var(--muted)}.connection-body{display:grid;grid-template-columns:180px 1fr;gap:16px;margin-top:10px}.status{margin-top:20px}.statusline{display:flex;justify-content:space-between;gap:12px;font-size:13px}.track{height:7px;background:#24334a;border-radius:20px;margin-top:14px;overflow:hidden}.bar{width:0;height:100%;background:var(--green);transition:width .25s}#error{color:var(--red);font-size:13px;margin-top:12px;white-space:pre-wrap}.results{margin-top:28px}.result-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.stat{background:#0b1626;border:1px solid var(--line);border-radius:12px;padding:15px 8px;text-align:center}.stat strong{display:block;font:700 26px Arial;color:var(--text)}.stat span{font-size:11px;color:var(--muted)}.json-head{display:flex;justify-content:space-between;align-items:center;margin:24px 0 12px;gap:12px}pre{direction:ltr;text-align:left;background:#07101e;color:#b9d8fa;padding:22px;border:1px solid var(--line);border-radius:14px;overflow:auto;max-height:500px;font:13px/1.7 Consolas,monospace;margin:0;tab-size:2}.foot{font-size:12px;color:var(--muted);margin-top:12px}.hidden{display:none!important}:focus-visible{outline:2px solid var(--green);outline-offset:3px}@media(max-width:700px){main{padding:22px 14px}.teams,.grid,.connection-body{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}.total,.result-head,.json-head{align-items:stretch;flex-direction:column}.card{padding:19px}.brand{font-size:22px}h1{font-size:20px}.buttons .btn{flex:1}header{align-items:flex-start}.badge{white-space:nowrap}}
 .team-name-row{display:flex;gap:8px;align-items:stretch}.team-name-row input{flex:1;min-width:0}.team-picker{position:relative;flex:0 0 48px;margin-top:6px}.team-picker select{margin:0;height:100%;padding:0;width:48px;appearance:none;color:transparent;cursor:pointer}.team-picker option{color:var(--text);background:#091322;font-size:14px}.team-picker>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;color:var(--green);font-size:24px}
+.monitor{margin-top:24px}.monitor-toolbar{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end}.monitor-toolbar .field{margin:0}.monitor-score{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 0;font:700 20px Arial}.monitor-score span:first-child{color:#68b7ff}.monitor-score span:last-child{color:#ffb35c}.monitor-score span{overflow-wrap:anywhere;max-width:40%}.monitor-score strong{white-space:nowrap}.monitor canvas{display:block;width:100%;height:auto;border-radius:12px;border:1px solid #315b45}.monitor-controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:12px}.monitor-controls label{font-size:12px}.monitor-controls select{width:auto;margin:0;padding:5px}.monitor input[type=range]{width:100%;padding:0;accent-color:var(--green);direction:ltr}@media(max-width:700px){.monitor-toolbar{grid-template-columns:1fr}.monitor-score{font-size:16px}}
 </style>
 </head>
 <body><main>
@@ -20,6 +21,16 @@
 </form>
 <section class="card status"><div class="buttons"><button class="btn" id="recent">بازیابی آخرین تست</button></div><p class="foot">بعد از بستن صفحه، برای دیدن نتیجهٔ تست قبلی از این دکمه استفاده کن.</p></section>
 <section class="card status" aria-live="polite"><div class="statusline"><span id="status">آمادهٔ شروع</span><span id="counter">0 / 5</span></div><div class="track" role="progressbar" aria-label="پیشرفت تست" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="bar"></div></div><p class="foot" id="liveProgress">پیشرفت مسابقه پس از اتصال تیم‌ها نمایش داده می‌شود.</p><div id="error" role="alert"></div></section>
+<section class="card monitor" id="matchMonitor" aria-label="مانیتور مسابقه">
+<div class="result-head"><div><h2>مانیتور مسابقه</h2><p class="foot">نمایش زنده با به‌روزرسانی حدود هر ۱۰ ثانیه؛ بازپخش از لاگ واقعی هر بازی.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
+<div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div>
+<div class="monitor-score" dir="ltr"><span id="monitorLeft">Left</span><strong id="monitorScore">— : —</strong><span id="monitorRight">Right</span></div>
+<canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
+<div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label><span id="monitorCycle">سایکل: —</span></div>
+<input type="range" id="monitorSeek" min="0" max="0" value="0" disabled aria-label="جابه‌جایی در بازپخش">
+<p class="foot" id="monitorInfo" aria-live="polite">پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.</p>
+</section>
+
 <section class="card results"><div class="result-head"><div><h2>گزارش تست</h2><p id="reportNote">پس از شروع، آمار و JSON نتایج اینجا نمایش داده می‌شوند.</p></div><button class="btn primary" id="zip" disabled>دانلود ZIP لاگ‌ها</button></div><div class="stats"><div class="stat"><strong id="completed">0</strong><span>بازی کامل‌شده</span></div><div class="stat"><strong id="leftWins">0</strong><span>برد تیم چپ</span></div><div class="stat"><strong id="draws">0</strong><span>مساوی</span></div><div class="stat"><strong id="rightWins">0</strong><span>برد تیم راست</span></div><div class="stat"><strong id="leftGoals">0</strong><span>گل تیم چپ</span></div><div class="stat"><strong id="rightGoals">0</strong><span>گل تیم راست</span></div></div><div class="stats" style="margin-top:12px;grid-template-columns:repeat(4,1fr)"><div class="stat"><strong id="posLeft">—</strong><span>میانگین مالکیت چپ ٪</span></div><div class="stat"><strong id="posRight">—</strong><span>میانگین مالکیت راست ٪</span></div><div class="stat"><strong id="posFree">—</strong><span>میانگین توپ آزاد ٪</span></div><div class="stat"><strong id="posShared">—</strong><span>میانگین کنترل مشترک ٪</span></div></div><div class="json-head"><h2 dir="ltr">results.json</h2><div class="buttons"><button class="btn" id="copy" disabled>کپی JSON</button><button class="btn" id="download" disabled>دانلود JSON</button></div></div><pre id="json" tabindex="0" aria-label="JSON نتایج">{
   "status": "idle",
   "matches": []
@@ -53,7 +64,7 @@ function render(){const matches=report.matches;let lw=0,rw=0,d=0,lg=0,rg=0,c=0;f
 const avg={};for(const [key,id] of Object.entries({left_percent:'posLeft',right_percent:'posRight',free_percent:'posFree',shared_percent:'posShared'})){const vals=matches.filter(m=>m.status==='completed'&&typeof m.possession?.[key]==='number').map(m=>m.possession[key]);avg[key]=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*1000)/1000:null;$(id).textContent=avg[key]===null?'—':avg[key].toFixed(1)}report.summary={...report.summary,completed:c,left_wins:lw,draws:d,right_wins:rw,left_goals:lg,right_goals:rg,average_possession:avg};$('json').textContent=JSON.stringify(report,null,2);$('copy').disabled=false;$('download').disabled=false;const live=report.progress;const fraction=report.status==='running'&&live?Number(live.percent||0)/100:0;const progress=Math.min(100,Math.round((matches.length+fraction)/report.total*100))||0;$('bar').style.width=progress+'%';document.querySelector('.track').setAttribute('aria-valuenow',String(progress));$('counter').textContent=matches.length+' / '+report.total;$('summaryExtra').textContent='بازی‌های ناموفق یا ناقص: '+(matches.length-c);
 $('liveProgress').textContent=live?'بازی '+live.match_index+' — سایکل '+live.cycle+' از '+live.expected_cycles+' — '+live.percent+'٪'+(live.left_score!==undefined?' — نتیجهٔ فعلی: '+live.left_score+' : '+live.right_score:'')+' — بازیکن‌های متصل: '+(live.left_players??'—')+' / '+(live.right_players??'—'):'پیشرفت مسابقه پس از اتصال تیم‌ها نمایش داده می‌شود.';
 const failures=matches.filter(m=>m.status==='failed').map(m=>'دور '+m.round+'، بازی '+m.game+': '+(m.error||'خطای نامشخص'));
-$('error').textContent=[report.error,...failures].filter(Boolean).join('\n');}
+$('error').textContent=[report.error,...failures].filter(Boolean).join('\n');updateMonitor();}
 
 async function request(url,options={}){const res=await fetch(url,{credentials:'include',signal:controller?.signal,...options});if(!res.ok){let msg='HTTP '+res.status;try{msg=(await res.json()).error||msg}catch{}const error=Error('خطای سرویس: '+msg);error.status=res.status;throw error}return res}
 async function demo(config){for(let r=1;r<=config.rounds;r++){for(let g=1;g<=config.games_per_round;g++){if(!running)return;const index=(r-1)*config.games_per_round+g;$('status').textContent='آزمایشی — بازی '+index+' از '+report.total;await pause(400);if(!running)return;report.matches.push({round:r,game:g,status:'completed',left_team:config.left.name,right_team:config.right.name,left_score:Math.floor(Math.random()*5),right_score:Math.floor(Math.random()*5)});render()}}report.status='completed';render();$('status').textContent='تست آزمایشی تمام شد — نتایج ساختگی';setRunning(false)}
@@ -129,4 +140,100 @@ function save(blob,name){const url=URL.createObjectURL(blob);const a=document.cr
 $('download').addEventListener('click',()=>{if(report)save(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),report.demo?'demo-results.json':'results.json')});
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('json').textContent);$('copy').textContent='کپی شد';setTimeout(()=>$('copy').textContent='کپی JSON',1500)}catch{$('error').textContent='کپی خودکار در این مرورگر فعال نیست؛ JSON را انتخاب و کپی کن یا دانلود کن.'}});
 $('zip').addEventListener('click',async()=>{if(!job||!logReady)return;$('zip').disabled=true;try{const response=await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/logs.zip');save(await response.blob(),'rcss-logs-'+job.id.replace(/[^a-zA-Z0-9_-]/g,'_')+'.zip')}catch(e){$('error').textContent='دانلود لاگ ناموفق بود: '+e.message}finally{$('zip').disabled=false}});
+// The monitor is read-only. Frames never alter the recorded match results.
+const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
+function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
+function monitorClear(){monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
+function selectedMatch(){return (report?.matches||[]).find(m=>m.round+'/'+m.game===arenaMonitor.key);}
+function drawPitch(frame){
+ const canvas=$('pitch');if(!canvas.getContext)return;const c=canvas.getContext('2d');if(!c)return;
+ const W=canvas.width,H=canvas.height,scale=Math.min(W/115,H/78),cx=W/2,cy=H/2;
+ const X=x=>cx+x*scale,Y=y=>cy+y*scale;
+ c.clearRect(0,0,W,H);c.fillStyle='#104d35';c.fillRect(0,0,W,H);
+ for(let i=0;i<10;i++){c.fillStyle=i%2?'#197647':'#1b7e4c';c.fillRect(X(-52.5+i*10.5),Y(-34),10.5*scale,68*scale);}
+ c.strokeStyle='#deede2';c.lineWidth=2;
+ const box=(x,y,w,h)=>c.strokeRect(X(x),Y(y),w*scale,h*scale);
+ const circle=(x,y,r)=>{c.beginPath();c.arc(X(x),Y(y),r*scale,0,Math.PI*2);c.stroke();};
+ box(-52.5,-34,105,68);c.beginPath();c.moveTo(X(0),Y(-34));c.lineTo(X(0),Y(34));c.stroke();circle(0,0,9.15);
+ for(const side of [-1,1]){box(side<0?-52.5:36,-20.16,16.5,40.32);box(side<0?-52.5:47,-9.16,5.5,18.32);box(side<0?-54.9:52.5,-7.01,2.4,14.02);circle(side*41.5,0,.18);}
+ if(!frame){c.fillStyle='#fff';c.textAlign='center';c.font='24px sans-serif';c.fillText('منتظر دادهٔ واقعی مسابقه',cx,cy);return;}
+ for(const p of frame.players||[]){
+  const [side,n,x,y,body,goalie]=p;if(!Number.isFinite(x)||!Number.isFinite(y))continue;
+  c.save();c.translate(X(x),Y(y));c.fillStyle=side==='l'?'#68b7ff':'#ffb35c';c.strokeStyle=goalie?'#fff247':'#0b1721';c.lineWidth=goalie?3:1.5;
+  c.beginPath();c.arc(0,0,9,0,Math.PI*2);c.fill();c.stroke();
+  const rad=(body||0)*Math.PI/180;c.beginPath();c.moveTo(Math.cos(rad)*10,Math.sin(rad)*10);c.lineTo(Math.cos(rad)*16,Math.sin(rad)*16);c.stroke();
+  c.fillStyle='#081323';c.font='bold 11px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(String(n),0,0);c.restore();
+ }
+ if(frame.ball?.every(Number.isFinite)){c.fillStyle='#fff';c.strokeStyle='#071a13';c.lineWidth=2;c.beginPath();c.arc(X(frame.ball[0]),Y(frame.ball[1]),5,0,Math.PI*2);c.fill();c.stroke();}
+}
+function monitorDisplay(frame){
+ drawPitch(frame);const match=selectedMatch();
+ $('monitorLeft').textContent=frame?.names?.[0]||match?.left_team||report?.config?.left?.name||'Left';
+ $('monitorRight').textContent=frame?.names?.[1]||match?.right_team||report?.config?.right?.name||'Right';
+ $('monitorScore').textContent=frame?.score?frame.score.join(' : '):'— : —';
+ $('monitorCycle').textContent=frame?'سایکل: '+frame.cycle+' — '+frame.mode:'سایکل: —';
+}
+function monitorReplayFrame(){
+ const data=arenaMonitor.data;if(!data)return;
+ $('monitorSeek').value=arenaMonitor.index;
+ monitorDisplay(data.frames[arenaMonitor.index]);
+ const m=selectedMatch();
+ const final=m?.status==='completed'?m.left_score+' : '+m.right_score:data.final_score.join(' : ');
+ $('monitorInfo').textContent='بازپخش دور و بازی '+arenaMonitor.key+' — نتیجهٔ ثبت‌شده: '+final+(m?.status==='failed'?' — بازی ناموفق/لاگ ناقص':'');
+ $('monitorBadge').textContent='بازپخش';
+}
+function monitorTick(){
+ if(!arenaMonitor.playing||!arenaMonitor.data)return;
+ if(arenaMonitor.index>=arenaMonitor.data.frames.length-1){monitorStop();return;}
+ arenaMonitor.index++;monitorReplayFrame();
+ arenaMonitor.timer=setTimeout(monitorTick,arenaMonitor.data.step_ms/Number($('monitorSpeed').value||1));
+}
+async function loadMonitorReplay(){
+ if(!job||!arenaMonitor.key)return;
+ const token=++arenaMonitor.request,api=job.api,id=job.id,key=arenaMonitor.key;
+ monitorClear();arenaMonitor.loading=true;$('monitorMode').value='replay';$('monitorLoad').disabled=true;
+ $('monitorBadge').textContent='دریافت بازپخش';$('monitorInfo').textContent='در حال دریافت لاگ بازی انتخاب‌شده…';monitorDisplay(null);
+ try{
+  const response=await fetch(api+'/api/tests/'+encodeURIComponent(id)+'/replay/'+key,{credentials:'include'});
+  if(!response.ok){let message='HTTP '+response.status;try{message=(await response.json()).error||message;}catch{}throw Error(message);}
+  const data=await response.json();
+  if(token!==arenaMonitor.request)return;
+  if(!Array.isArray(data.frames)||!data.frames.length)throw Error('بازپخش فاقد دادهٔ زمین است.');
+  arenaMonitor.data=data;arenaMonitor.index=0;$('monitorSeek').max=data.frames.length-1;$('monitorSeek').disabled=false;$('monitorPlay').disabled=false;monitorReplayFrame();
+ }catch(error){if(token===arenaMonitor.request){$('monitorInfo').textContent=error.message;$('monitorBadge').textContent='بازپخش آماده نیست';}}
+ finally{if(token===arenaMonitor.request){arenaMonitor.loading=false;$('monitorLoad').disabled=false;}}
+}
+function monitorLive(){
+ const live=report?.progress;
+ if(live&&live.round+'/'+live.game===arenaMonitor.key&&live.frame){
+  monitorDisplay({...live.frame,score:[live.left_score??live.frame.score[0],live.right_score??live.frame.score[1]],names:live.server_team_names||live.frame.names});
+  $('monitorBadge').textContent='زنده با تأخیر';$('monitorInfo').textContent='آخرین داده: '+(live.updated_at||'—')+' — به‌روزرسانی حدود هر ۱۰ ثانیه';
+ }else{monitorDisplay(null);$('monitorBadge').textContent='بدون دادهٔ زنده';$('monitorInfo').textContent=selectedMatch()?'این بازی پایان یافته؛ «دریافت بازپخش» را بزن.':live&&live.round+'/'+live.game===arenaMonitor.key?'این اجرا هنوز دادهٔ زمین نفرستاده؛ منتظر به‌روزرسانی بمان یا پس از پایان، بازپخش را دریافت کن.':'این بازی هنوز شروع نشده است.';}
+}
+function updateMonitor(){
+ if(!$('pitch').getContext||!report)return;
+ const test=String(report.id||'');
+ if(test!==arenaMonitor.test){arenaMonitor.request++;arenaMonitor.loading=false;arenaMonitor.test=test;arenaMonitor.key='';arenaMonitor.signature='';monitorClear();}
+ const rounds=Number(report.config?.rounds||1),games=Number(report.config?.games_per_round||report.total||1),rows=[];
+ for(let r=1;r<=rounds;r++)for(let g=1;g<=games;g++){
+  const key=r+'/'+g,m=(report.matches||[]).find(x=>x.round===r&&x.game===g),live=report.progress?.round===r&&report.progress?.game===g;
+  rows.push({key,label:'دور '+r+' — بازی '+g+' · '+(m?(m.status==='completed'?m.left_score+' : '+m.right_score:'ناموفق/متوقف'):live?'در حال اجرا':'در انتظار')});
+ }
+ const sig=JSON.stringify(rows);
+ if(sig!==arenaMonitor.signature){arenaMonitor.signature=sig;const select=$('monitorMatch');select.replaceChildren();for(const row of rows)select.add(new Option(row.label,row.key));
+  if(!rows.some(r=>r.key===arenaMonitor.key))arenaMonitor.key=report.progress?report.progress.round+'/'+report.progress.game:rows[0]?.key||'';
+  select.value=arenaMonitor.key;
+ }
+ $('monitorLoad').disabled=!job||!arenaMonitor.key||arenaMonitor.loading;
+ if($('monitorMode').value==='replay'){
+  if(arenaMonitor.data)monitorReplayFrame();
+ }else monitorLive();
+}
+$('monitorMatch').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;arenaMonitor.key=$('monitorMatch').value;monitorClear();if(selectedMatch())loadMonitorReplay();else{$('monitorMode').value='live';monitorLive();}});
+$('monitorMode').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();if($('monitorMode').value==='replay')loadMonitorReplay();else{updateMonitor();}});
+$('monitorLoad').addEventListener('click',loadMonitorReplay);
+$('monitorPlay').addEventListener('click',()=>{if(arenaMonitor.playing){monitorStop();return;}if(!arenaMonitor.data)return;if(arenaMonitor.index>=arenaMonitor.data.frames.length-1)arenaMonitor.index=0;arenaMonitor.playing=true;$('monitorPlay').textContent='توقف موقت ❚❚';monitorTick();});
+$('monitorSeek').addEventListener('input',()=>{monitorStop();arenaMonitor.index=Number($('monitorSeek').value);monitorReplayFrame();});
+drawPitch(null);
+
 </script></body></html>

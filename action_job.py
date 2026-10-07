@@ -4,6 +4,7 @@ from pathlib import Path
 from github_api import storage_client,is_arena_release
 from app import extract,validate
 from runner import run_job
+from replay import asset_name
 
 class RemoteCancel:
     def __init__(self,gh,ident):self.gh=gh;self.ident=ident;self.next=0;self.value=False
@@ -21,7 +22,19 @@ def main():
     if config['rounds']*config['games_per_round']>50:raise ValueError('Maximum 50 matches')
     root=Path('job-data').resolve();root.mkdir(exist_ok=True)
     state={'id':str(ident),'status':'queued','demo':False,'server_version':'19.0.0','config':config,'matches':[],'total':config['rounds']*config['games_per_round'],'started_at':rel['created_at'],'archive_ready':False,'publication_pending':True}
+    published_replays=set()
     def write(job):
+        # Publish each finished game's replay before proceeding to the next game.
+        for match in state['matches']:
+            key=(match['round'],match['game'])
+            if key in published_replays or not match.get('replay_available'):continue
+            path=root/'logs'/f'round-{key[0]:03d}-game-{key[1]:03d}'/'replay.json.gz'
+            try:
+                gh.put(ident,asset_name(*key),path.read_bytes(),'application/gzip')
+                published_replays.add(key);match['replay_ready']=True
+            except Exception:
+                print('Replay publication delayed; match results are retained.',flush=True)
+
         content=json.dumps(state,ensure_ascii=False,indent=2).encode();(root/'results.json').write_bytes(content)
         # Release metadata gives atomic live updates without deleting/re-uploading an asset.
         try:

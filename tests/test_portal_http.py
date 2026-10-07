@@ -1,4 +1,5 @@
 """Exercise private draft identity through the real HTTP result/download routes."""
+import gzip
 import base64
 import io
 import json
@@ -24,7 +25,7 @@ class PortalHTTP(unittest.TestCase):
             def open(self,*args,**kwargs): return io.BytesIO(b'zip')
             def put(self,*args): self.cancelled=True
         storage=Storage();CACHE.clear()
-        with patch.dict(os.environ,{'ARENA_USER':'fixture','ARENA_PASSWORD':'fixture-password'}),patch('cloud_app.storage_client',return_value=storage),patch('cloud_app.GitHub',return_value=storage):
+        with patch.dict(os.environ,{'ARENA_USER':'fixture','ARENA_PASSWORD':'fixture-password'}),patch('cloud_app.storage_client',return_value=storage),patch('cloud_app.GitHub',return_value=storage),patch('cloud_app.replay_data',return_value=gzip.compress(b'{"frames":[{"cycle":6000}]}')):
             server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
             thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
             def request(path,method='GET'):
@@ -35,6 +36,7 @@ class PortalHTTP(unittest.TestCase):
                 self.assertEqual([x['id'] for x in json.loads(request('/api/tests'))],['7'])
                 self.assertEqual(json.loads(request('/api/tests/7'))['status'],'completed')
                 self.assertEqual(request('/api/tests/7/logs.zip'),b'zip')
+                self.assertEqual(json.loads(gzip.decompress(request('/api/tests/7/replay/1/2')))['frames'][0]['cycle'],6000)
                 self.assertEqual(json.loads(request('/api/tests/7/cancel','POST'))['status'],'cancellation_requested')
                 self.assertTrue(storage.cancelled)
             finally: server.shutdown();server.server_close();thread.join(timeout=2)

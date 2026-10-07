@@ -1,0 +1,27 @@
+const {chromium}=require('playwright');
+const fs=require('fs'),assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const state={id:'fixture',status:'running',total:2,config:{rounds:1,games_per_round:2,left:{name:'Blue'},right:{name:'Orange'}},matches:[{round:1,game:1,status:'completed',left_team:'Blue',right_team:'Orange',left_score:2,right_score:1}],progress:{round:1,game:2,cycle:3500,expected_cycles:6000,percent:58.3,left_score:3,right_score:2,frame:{cycle:3500,mode:'3',names:['Blue','Orange'],score:[3,2],ball:[1,2],players:[['l',1,-45,0,0,true],['r',9,20,10,90,false]]}}};
+ const replay={version:1,step_ms:100,final_score:[2,1],frames:[{...state.progress.frame,cycle:1,score:[0,0]},{...state.progress.frame,cycle:6000,score:[2,1]}]};
+ await page.route('http://arena.test/**',async route=>{const u=new URL(route.request().url());let body;
+ if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:fs.readFileSync('static/index.html','utf8')});
+ if(u.pathname==='/api/teams')body=[];
+ else if(u.pathname==='/api/tests')body=[{id:'fixture',started_at:'2026-10-07'}];
+ else if(u.pathname.includes('/replay/'))body=replay;
+ else body=state;
+ await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+ });
+ await page.goto('http://arena.test/');await page.waitForFunction(()=>document.getElementById('monitorScore').textContent==='3 : 2');
+ assert.equal(await page.locator('#monitorMatch option').count(),2);
+ await page.selectOption('#monitorMatch','1/1');await page.waitForFunction(()=>!document.getElementById('monitorPlay').disabled);
+ assert.equal(await page.locator('#monitorScore').textContent(),'0 : 0');
+ await page.locator('#monitorSeek').fill('1');await page.locator('#monitorSeek').dispatchEvent('input');
+ assert.equal(await page.locator('#monitorScore').textContent(),'2 : 1');
+ await page.selectOption('#monitorMatch','1/2');assert.equal(await page.locator('#monitorScore').textContent(),'3 : 2');
+ await page.locator('#matchMonitor').screenshot({path:'/tmp/arena-monitor-desktop.png'});
+ await page.setViewportSize({width:390,height:844});await page.locator('#matchMonitor').screenshot({path:'/tmp/arena-monitor-mobile.png'});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ assert.deepEqual(errors,[]);console.log('PASS: live positions, game selection, replay seeking, score, desktop/mobile layout');await browser.close();
+})().catch(e=>{console.error(e);process.exitCode=1});

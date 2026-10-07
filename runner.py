@@ -8,6 +8,7 @@ import subprocess
 import time
 from pathlib import Path
 from analysis import analyze, summary, sexpr
+from replay import show_frame,encode_replay
 
 class Cancelled(Exception): pass
 
@@ -47,6 +48,7 @@ def monitor_snapshot(text, previous=None):
     elif rec[0]=='playmode': snapshot['playmode']=rec[2]
     else:
         snapshot['cycle']=int(rec[1])
+        snapshot['frame']=show_frame(rec,{'names':snapshot.get('server_team_names',['Left','Right']),'score':[snapshot.get('left_score',0),snapshot.get('right_score',0)],'mode':snapshot.get('playmode','before_kick_off')})
         counts={'l':0,'r':0}
         for item in rec[2:]:
             if not isinstance(item,list) or not item: continue
@@ -168,6 +170,14 @@ def run_job(job,write):
                 except Exception as exc:
                     entry.update(status='failed',error=str(exc))
                     entry['last_observed']=state.get('progress',{}).copy()
+                # Replay generation must never change a match's result.
+                folder=root/'logs'/f'round-{r:03d}-game-{g:03d}'
+                if (folder/'match.rcg').exists():
+                    try:
+                        with (folder/'match.rcg').open(encoding='utf-8') as stream:
+                            (folder/'replay.json.gz').write_bytes(encode_replay(stream))
+                        entry['replay_available']=True
+                    except Exception as exc:entry['replay_error']=str(exc)
                 state.pop('progress',None)
                 state['matches'].append(entry); state['summary']=summary(state['matches']); write(job)
         failures=sum(m['status']!='completed' for m in state['matches'])

@@ -8,7 +8,51 @@ from app import Handler as BaseHandler,validate
 from github_api import GitHub,storage_client,is_arena_release
 from pathlib import Path
 from presets import catalog,resolve_teams
+from replay import asset_name,encode_replay
+import tempfile,zipfile
 LOCK=threading.Lock();CACHE={}
+REPLAY_LOCK=threading.Lock();REPLAY_CACHE={}
+
+def replay_data(gh,ident,round_number,game_number):
+    key=(getattr(gh,'repo','storage'),str(ident),round_number,game_number)
+    # Keep at most two compressed replays in the small Render instance.
+    with REPLAY_LOCK:
+        cached=REPLAY_CACHE.get(key)
+        if cached and time.monotonic()-cached[0]<300:return cached[1]
+        rel=gh.release(ident)
+        if not is_arena_release(rel):raise ValueError('Not an Arena test')
+        assets=gh.assets(ident);asset=assets.get(asset_name(round_number,game_number))
+        if asset:
+            if asset.get('size',0)>16*1024**2:raise ValueError('Replay asset is too large')
+            blob=gh.read_asset(asset)
+        else:
+            archive=assets.get('logs.zip')
+            if not archive:raise LookupError('بازپخش هنوز آماده نیست؛ پس از پایان بازی دوباره دریافت کن.')
+            if archive.get('size',0)>64*1024**2:raise ValueError('برای این آرشیو قدیمی و بزرگ، ZIP لاگ‌ها را دانلود کن.')
+            prefix=f'logs/round-{round_number:03d}-game-{game_number:03d}/'
+            with tempfile.TemporaryFile() as temp:
+                with gh.open('/releases/assets/'+str(archive['id']),binary=True) as response:
+                    total=0
+                    while True:
+                        chunk=response.read(65536)
+                        if not chunk:break
+                        total+=len(chunk)
+                        if total>64*1024**2:raise ValueError('Archive is too large')
+                        temp.write(chunk)
+                temp.seek(0)
+                with zipfile.ZipFile(temp) as z:
+                    replay=prefix+'replay.json.gz'
+                    path=replay if replay in z.namelist() else prefix+'match.rcg'
+                    if path not in z.namelist():raise LookupError('این بازی هنوز لاگ قابل نمایش ندارد.')
+                    limit=16*1024**2 if path==replay else 128*1024**2
+                    if z.getinfo(path).file_size>limit:raise ValueError('Replay log is too large')
+                    with z.open(path) as stream:
+                        blob=stream.read() if path==replay else encode_replay(io.TextIOWrapper(stream,encoding='utf-8'))
+        if len(blob)>16*1024**2:raise ValueError('Replay is too large')
+        if len(REPLAY_CACHE)>=2:REPLAY_CACHE.pop(next(iter(REPLAY_CACHE)))
+        REPLAY_CACHE[key]=(time.monotonic(),blob)
+        return blob
+
 
 def state(gh,ident,workflow=None):
     workflow=workflow or gh
@@ -54,6 +98,18 @@ class Handler(BaseHandler):
                         rows.append({'id':str(rel['id']),'status':'unknown','started_at':rel['created_at']})
                 return self.send(200,rows)
             import re
+            replay_match=re.fullmatch(r'/api/tests/(\d+)/replay/(\d+)/(\d+)',path)
+            if replay_match:
+                ident,r,g=map(int,replay_match.groups())
+                if not 1<=r<=100 or not 1<=g<=100:raise ValueError('Invalid round/game')
+                try:blob=replay_data(gh,ident,r,g)
+                except LookupError as exc:return self.send(409,{'error':str(exc)})
+                self.send_response(200)
+                self.send_header('Content-Type','application/json; charset=utf-8')
+                self.send_header('Content-Encoding','gzip')
+                self.send_header('Content-Length',str(len(blob)))
+                self.send_header('Cache-Control','no-store')
+                self.end_headers();self.wfile.write(blob);return
             m=re.fullmatch(r'/api/tests/(\d+)(/logs.zip)?',path)
             if not m:return self.send(404,{'error':'Not found'})
             ident=m[1]
