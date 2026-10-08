@@ -50,7 +50,7 @@
 <section class="card monitor" id="matchMonitor" aria-label="مانیتور مسابقه">
 <div class="result-head"><div><div class="team-name-row"><span class="team-picker"><select id="monitorSource" aria-label="منبع مانیتور" title="منبع مانیتور"><option value="server">اتصال به سرور</option><option value="file">خواندن فایل RCG</option></select><span aria-hidden="true">▾</span></span><h2>مانیتور مسابقه</h2></div><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها ممکن است با تأخیر همراه باشد؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
 <div id="monitorFilePanel" class="hidden"><label class="upload"><strong>انتخاب فایل RCG برای بازپخش</strong><small>فایل متنی ULG4، ULG5 یا ULG6؛ فایل فقط در مرورگر خوانده می‌شود و به سرور ارسال نمی‌شود.</small><input id="monitorFile" type="file" accept=".rcg"></label></div>
-<div class="monitor-toolbar" id="monitorServerPanel"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div>
+<div id="monitorServerPanel"><label class="foot" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer"><input type="checkbox" id="monitorAutoNext" style="width:auto;margin:0;accent-color:var(--green)">رفتن خودکار به بازی بعدی</label><div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div></div>
 <div class="monitor-score" dir="ltr"><span id="monitorLeft">Left</span><strong id="monitorScore">— : —</strong><span id="monitorRight">Right</span></div>
 <canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
 <div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label><span id="monitorCycle">سایکل: —</span></div>
@@ -371,6 +371,7 @@ function startDirectLive(){
    directLive.frames.set(key,{frame:item.frame,received:now,stamp,samples});
    if(directLive.frames.size>4)directLive.frames.delete(directLive.frames.keys().next().value);
   }
+  followNextGame(frames[frames.length-1].round+'/'+frames[frames.length-1].game);
   if(monitorSource==='server'&&$('monitorMode').value==='live')monitorLive();
   if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);
   directLive.watchdog=setTimeout(()=>{if($('monitorMode').value==='live')monitorLive();},4000);
@@ -391,6 +392,20 @@ function monitorLive(){
   $('monitorBadge').textContent='گزارش دوره‌ای';$('monitorInfo').textContent='در انتظار اتصال مستقیم؛ آخرین گزارش: '+(live.updated_at||'—')+' — در قطع ارتباط، به‌روزرسانی حدود هر ۱۰ ثانیه';
  }else{monitorDisplay(null);$('monitorBadge').textContent='بدون دادهٔ زنده';$('monitorInfo').textContent=selectedMatch()?'این بازی پایان یافته؛ «دریافت بازپخش» را بزن.':live&&live.round+'/'+live.game===arenaMonitor.key?'این اجرا هنوز دادهٔ زمین نفرستاده؛ منتظر به‌روزرسانی بمان یا پس از پایان، بازپخش را دریافت کن.':'این بازی هنوز شروع نشده است.';}
 }
+
+function followNextGame(liveKey=''){
+ if(monitorSource!=='server'||$('monitorMode').value!=='live'||!$('monitorAutoNext').checked||!report||!['queued','running'].includes(report.status))return;
+ const games=Number(report.config?.games_per_round||report.total||1),rounds=Number(report.config?.rounds||1);
+ const index=key=>{const [r,g]=String(key).split('/').map(Number);return r>=1&&r<=rounds&&g>=1&&g<=games?(r-1)*games+g-1:-1;};
+ const current=index(arenaMonitor.key),incoming=index(liveKey);
+ if(current<0||current+1>=rounds*games)return;
+ const frame=directLive.frames.get(arenaMonitor.key)?.frame;
+ const finished=selectedMatch()&&['completed','failed','cancelled'].includes(selectedMatch().status)||['time_over','2'].includes(String(frame?.mode));
+ if(!finished&&incoming<=current)return;
+ const next=current+1,key=(Math.floor(next/games)+1)+'/'+(next%games+1);
+ arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();arenaMonitor.key=key;$('monitorMatch').value=key;
+}
+
 function updateMonitor(){
  if(monitorSource==='file')return;
  if(!$('pitch').getContext||!report)return;
@@ -407,11 +422,13 @@ function updateMonitor(){
   if(!rows.some(r=>r.key===arenaMonitor.key))arenaMonitor.key=report.progress?report.progress.round+'/'+report.progress.game:rows[0]?.key||'';
   select.value=arenaMonitor.key;
  }
+ followNextGame();
  $('monitorLoad').disabled=!job||!arenaMonitor.key||arenaMonitor.loading;
  if($('monitorMode').value==='replay'){
   if(arenaMonitor.data)monitorReplayFrame();
  }else monitorLive();
 }
+$('monitorAutoNext').addEventListener('change',()=>updateMonitor());
 $('monitorMatch').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;arenaMonitor.key=$('monitorMatch').value;monitorClear();if(selectedMatch())loadMonitorReplay();else{$('monitorMode').value='live';monitorLive();}});
 $('monitorMode').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();if($('monitorMode').value==='replay')loadMonitorReplay();else{updateMonitor();}});
 $('monitorLoad').addEventListener('click',loadMonitorReplay);
@@ -469,7 +486,7 @@ function showLocalReplay(){
 $('monitorSource').addEventListener('change',()=>{
  if(monitorSource==='file'&&arenaMonitor.data===localReplay)localReplayIndex=arenaMonitor.index;
  monitorSource=$('monitorSource').value==='file'?'file':'server';localRead++;arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();
- $('monitorFilePanel').className=monitorSource==='file'?'':'hidden';$('monitorServerPanel').className=monitorSource==='file'?'monitor-toolbar hidden':'monitor-toolbar';
+ $('monitorFilePanel').className=monitorSource==='file'?'':'hidden';$('monitorServerPanel').className=monitorSource==='file'?'hidden':'';
  if(monitorSource==='file'){showLocalReplay();render();}
  else{$('monitorMode').value='live';render();updateMonitor();if(!report){monitorDisplay(null);$('monitorBadge').textContent='منتظر انتخاب تست';$('monitorInfo').textContent='پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.';}}
 });
