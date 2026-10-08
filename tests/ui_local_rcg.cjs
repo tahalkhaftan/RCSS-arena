@@ -37,6 +37,16 @@ const rcg='ULG5\n(server_param (simulator_step 100))\n(team 0 Blue Orange 0 0)\n
  assert.equal(el('monitorScore').textContent,'0 : 0','Server updates must not replace a local replay');
  el('monitorSeek').value='1';el('monitorSeek').input();assert.equal(el('monitorScore').textContent,'2 : 1');assert.match(el('monitorInfo').textContent,/match.rcg/);
  el('monitorPlay').click();assert.equal(el('monitorPlay').textContent,'توقف موقت ❚❚');el('monitorPlay').click();
+
+ // Server goals remain visible while the independent RCG is on screen.
+ vm.runInContext("job=null;report={id:'parallel-server',status:'running',matches:[],total:1,config:{left:{name:'ServerA'},right:{name:'ServerB'}},progress:{round:1,game:1,cycle:10,left_score:0,right_score:0}};render()",ctx);
+ vm.runInContext('report.progress.cycle=20;report.progress.right_score=1;render()',ctx);
+ assert.match(el('goalToastTitle').textContent,/مسابقهٔ سرور/);assert.match(el('goalToastScore').textContent,/ServerA 0 : 1 ServerB/);
+ assert.equal(el('monitorScore').textContent,'2 : 1','Server goal must not replace the RCG picture');
+ const noticeCount=timers.filter(t=>t.ms===3000).length;vm.runInContext('render()',ctx);assert.equal(timers.filter(t=>t.ms===3000).length,noticeCount,'Repeated polling must not repeat a goal');
+ el('monitorSource').value='server';el('monitorSource').change();
+ el('monitorSource').value='file';el('monitorSource').change();
+ assert.equal(el('monitorSeek').value,1);assert.equal(el('monitorScore').textContent,'2 : 1','Returning to RCG must preserve the last viewed frame');
  el('monitorFile').files=[{name:'bad.rcg',size:5,text:async()=>'ULG3'}];await el('monitorFile').change();assert.equal(el('monitorBadge').textContent,'خطای فایل RCG');
  vm.runInContext('report=null',ctx);el('monitorSource').value='server';el('monitorSource').change();assert.equal(el('monitorBadge').textContent,'منتظر انتخاب تست');assert.equal(el('resultsTitle').textContent,'گزارش تست');assert.equal(JSON.parse(el('json').textContent).source,undefined);
  console.log('PASS: local RCG parsing, upload, playback, seeking, invalid files and server isolation');

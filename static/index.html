@@ -112,7 +112,7 @@ function validateTeamFields(){
 }
 function settings(){return{left:{preset_id:$('leftPreset').value,name:$('leftName').value.trim(),directory:$('leftDir').value.trim(),command:$('leftCmd').value.trim()},right:{preset_id:$('rightPreset').value,name:$('rightName').value.trim(),directory:$('rightDir').value.trim(),command:$('rightCmd').value.trim()},rounds:Number($('rounds').value),games_per_round:Number($('games').value),synch_mode:$('speed').value==='sync'}}
 function setRunning(on){running=on;document.querySelectorAll('#form input,#form select,#start,#mode,#api').forEach(el=>el.disabled=on);$('stop').disabled=!on;['left','right'].forEach(side=>{if($(side+'Preset').value){[side+'Name',side+'Dir',side+'Cmd'].forEach(id=>$(id).readOnly=true);$(side+'File').disabled=true;}})}
-function render(){const data=resultsReport(),isFile=monitorSource==='file'&&!!localResults;
+function render(){updateServerGoals();startDirectLive();const data=resultsReport(),isFile=monitorSource==='file'&&!!localResults;
  $('monitorConcurrent').textContent=monitorSource==='file'&&['queued','running'].includes(report?.status)?'تست سرور هم‌زمان در حال اجراست؛ بازپخش RCG مستقل ادامه دارد.':'';
  $('resultsTitle').textContent=isFile?'نتایج RCG':'گزارش تست';
  $('reportNote').textContent=isFile?'نتایج فایل مستقل: '+localReplayName:report?.demo?'پیش‌نمایش رابط — نتایج ساختگی‌اند.':'آمار کل تست و JSON نتیجهٔ هر مسابقه';
@@ -200,16 +200,36 @@ $('zip').addEventListener('click',async()=>{if(monitorSource==='file'||!job||!lo
 // The monitor is read-only. Frames never alter the recorded match results.
 let goalNoticeTimer=null;
 function clearGoalNotice(){if(goalNoticeTimer!==null)clearTimeout(goalNoticeTimer);goalNoticeTimer=null;$('goalToast').className='goal-toast';}
-function announceReplayGoal(previous,next){
- if(monitorSource!=='file'||!previous||!next)return;
+function announceGoal(previous,next,source){
+ if(!previous||!next)return;
  const goals=[];for(let side=0;side<2;side++){if(Number(next.score[side])>Number(previous.score[side]))goals.push(next.names?.[side]||['Left','Right'][side]);}
  if(!goals.length)return;
- clearGoalNotice();$('goalToastTitle').textContent='⚽ گل برای '+goals.join(' و ');
+ clearGoalNotice();$('goalToastTitle').textContent='⚽ '+source+' — گل برای '+goals.join(' و ');
  $('goalToastScore').textContent=(next.names?.[0]||'Left')+' '+next.score[0]+' : '+next.score[1]+' '+(next.names?.[1]||'Right');
  $('goalToast').className='goal-toast visible';goalNoticeTimer=setTimeout(clearGoalNotice,3000);
 }
+function announceReplayGoal(previous,next){if(monitorSource==='file')announceGoal(previous,next,'بازپخش RCG');}
+const serverGoals={test:null,scores:new Map()};
+function trackServerGoal(round,game,frame){
+ if(!frame||!Array.isArray(frame.score)||!frame.score.every(Number.isInteger))return;
+ const id=String(job?.id||report?.id||report?.started_at||'');if(!id)return;
+ if(serverGoals.test!==id){serverGoals.test=id;serverGoals.scores.clear();}
+ const key=round+'/'+game,previous=serverGoals.scores.get(key);
+ if(previous&&(frame.cycle||0)<(previous.cycle||0))return;
+ if(previous&&frame.score.some((n,i)=>n<previous.score[i]))return;
+ serverGoals.scores.set(key,{...frame,score:[...frame.score]});
+ if(previous)announceGoal(previous,frame,'مسابقهٔ سرور · دور '+round+' بازی '+game);
+}
+function updateServerGoals(){
+ if(!report||report.demo)return;
+ for(const m of report.matches||[]){
+  if(m.status==='completed')trackServerGoal(m.round,m.game,{cycle:m.last_cycle||6000,score:[m.left_score,m.right_score],names:[m.left_team,m.right_team]});
+ }
+ const p=report.progress;
+ if(p&&Number.isInteger(p.left_score)&&Number.isInteger(p.right_score))trackServerGoal(p.round,p.game,{cycle:p.cycle||0,score:[p.left_score,p.right_score],names:p.server_team_names||[report.config?.left?.name||'Left',report.config?.right?.name||'Right']});
+}
 const directLive={source:null,test:null,frames:new Map(),received:0,timers:[],watchdog:null};
-let monitorSource='server',localResults=null,localReplay=null,localReplayName='',localRead=0;
+let monitorSource='server',localReplayIndex=0,localResults=null,localReplay=null,localReplayName='',localRead=0;
 const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
 function monitorClear(){clearGoalNotice();monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
@@ -279,7 +299,6 @@ function stopDirectLive(){
  if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);directLive.watchdog=null;
 }
 function startDirectLive(){
- if(monitorSource==='file')return;
  if(typeof EventSource==='undefined'||!job||!report||report.demo)return;
  if(!['queued','running'].includes(report.status)){stopDirectLive();return;}
  const key=job.api+'/'+job.id;if(directLive.test===key)return;
@@ -296,6 +315,7 @@ function startDirectLive(){
    if(!item.frame||!Array.isArray(item.frame.players))return;
    const show=()=>{
     if(directLive.source!==source)return;
+    trackServerGoal(item.round,item.game,item.frame);
     directLive.frames.set(item.round+'/'+item.game,{frame:item.frame,received:Date.now()});
     if(directLive.frames.size>4)directLive.frames.delete(directLive.frames.keys().next().value);
     if($('monitorMode').value==='live'&&arenaMonitor.key===item.round+'/'+item.game)monitorLive();
@@ -393,17 +413,18 @@ async function parseLocalRCG(text,current=()=>true){
 }
 function showLocalReplay(){
  if(!localReplay){monitorDisplay(null);$('monitorBadge').textContent='انتخاب فایل RCG';$('monitorInfo').textContent='فایل RCG را از دستگاه انتخاب کن.';return;}
- arenaMonitor.data=localReplay;arenaMonitor.index=0;$('monitorSeek').max=localReplay.frames.length-1;$('monitorSeek').disabled=false;$('monitorPlay').disabled=false;monitorReplayFrame();
+ arenaMonitor.data=localReplay;arenaMonitor.index=Math.min(localReplayIndex,localReplay.frames.length-1);$('monitorSeek').max=localReplay.frames.length-1;$('monitorSeek').disabled=false;$('monitorPlay').disabled=false;monitorReplayFrame();
 }
 $('monitorSource').addEventListener('change',()=>{
+ if(monitorSource==='file'&&arenaMonitor.data===localReplay)localReplayIndex=arenaMonitor.index;
  monitorSource=$('monitorSource').value==='file'?'file':'server';localRead++;arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();
  $('monitorFilePanel').className=monitorSource==='file'?'':'hidden';$('monitorServerPanel').className=monitorSource==='file'?'monitor-toolbar hidden':'monitor-toolbar';
- if(monitorSource==='file'){stopDirectLive();showLocalReplay();render();}
+ if(monitorSource==='file'){showLocalReplay();render();}
  else{$('monitorMode').value='live';render();updateMonitor();if(!report){monitorDisplay(null);$('monitorBadge').textContent='منتظر انتخاب تست';$('monitorInfo').textContent='پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.';}}
 });
 $('monitorFile').addEventListener('change',async()=>{
  const file=$('monitorFile').files[0];if(!file)return;
- const token=++localRead;monitorClear();localReplay=null;localResults=null;render();
+ const token=++localRead;monitorClear();localReplayIndex=0;localReplay=null;localResults=null;render();
  $('monitorBadge').textContent='خواندن فایل';$('monitorInfo').textContent='در حال خواندن RCG…';monitorDisplay(null);
  try{
   if(!/\.rcg$/i.test(file.name))throw Error('فایل با پسوند .rcg انتخاب کن.');
