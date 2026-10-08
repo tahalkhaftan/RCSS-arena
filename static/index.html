@@ -44,8 +44,9 @@
 <section class="card status"><div class="buttons"><button class="btn" id="recent">بازیابی آخرین تست</button></div><p class="foot">بعد از بستن صفحه، برای دیدن نتیجهٔ تست قبلی از این دکمه استفاده کن.</p></section>
 <section class="card status" aria-live="polite"><div class="statusline"><span id="status">آمادهٔ شروع</span><span id="counter">0 / 5</span></div><div class="track" role="progressbar" aria-label="پیشرفت تست" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="bar"></div></div><p class="foot" id="liveProgress">پیشرفت مسابقه پس از اتصال تیم‌ها نمایش داده می‌شود.</p><div id="error" role="alert"></div></section>
 <section class="card monitor" id="matchMonitor" aria-label="مانیتور مسابقه">
-<div class="result-head"><div><h2>مانیتور مسابقه</h2><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها ممکن است با تأخیر همراه باشد؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
-<div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div>
+<div class="result-head"><div><div class="team-name-row"><span class="team-picker"><select id="monitorSource" aria-label="منبع مانیتور" title="منبع مانیتور"><option value="server">اتصال به سرور</option><option value="file">خواندن فایل RCG</option></select><span aria-hidden="true">▾</span></span><h2>مانیتور مسابقه</h2></div><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها ممکن است با تأخیر همراه باشد؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
+<div id="monitorFilePanel" class="hidden"><label class="upload"><strong>انتخاب فایل RCG برای بازپخش</strong><small>فایل متنی ULG4 یا ULG5؛ فایل فقط در مرورگر خوانده می‌شود و به سرور ارسال نمی‌شود.</small><input id="monitorFile" type="file" accept=".rcg"></label></div>
+<div class="monitor-toolbar" id="monitorServerPanel"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div>
 <div class="monitor-score" dir="ltr"><span id="monitorLeft">Left</span><strong id="monitorScore">— : —</strong><span id="monitorRight">Right</span></div>
 <canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
 <div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label><span id="monitorCycle">سایکل: —</span></div>
@@ -187,10 +188,11 @@ $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.write
 $('zip').addEventListener('click',async()=>{if(!job||!logReady)return;$('zip').disabled=true;try{const response=await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/logs.zip');save(await response.blob(),'rcss-logs-'+job.id.replace(/[^a-zA-Z0-9_-]/g,'_')+'.zip')}catch(e){$('error').textContent='دانلود لاگ ناموفق بود: '+e.message}finally{$('zip').disabled=false}});
 // The monitor is read-only. Frames never alter the recorded match results.
 const directLive={source:null,test:null,frames:new Map(),received:0,timers:[],watchdog:null};
+let monitorSource='server',localReplay=null,localReplayName='',localRead=0;
 const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
 function monitorClear(){monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
-function selectedMatch(){return (report?.matches||[]).find(m=>m.round+'/'+m.game===arenaMonitor.key);}
+function selectedMatch(){if(monitorSource==='file')return undefined;return (report?.matches||[]).find(m=>m.round+'/'+m.game===arenaMonitor.key);}
 function drawPitch(frame){
  const canvas=$('pitch');if(!canvas.getContext)return;const c=canvas.getContext('2d');if(!c)return;
  const W=canvas.width,H=canvas.height,scale=Math.min(W/115,H/78),cx=W/2,cy=H/2;
@@ -225,7 +227,7 @@ function monitorReplayFrame(){
  monitorDisplay(data.frames[arenaMonitor.index]);
  const m=selectedMatch();
  const final=m?.status==='completed'?m.left_score+' : '+m.right_score:data.final_score.join(' : ');
- $('monitorInfo').textContent='بازپخش دور و بازی '+arenaMonitor.key+' — نتیجهٔ ثبت‌شده: '+final+(m?.status==='failed'?' — بازی ناموفق/لاگ ناقص':'');
+ $('monitorInfo').textContent=monitorSource==='file'?'فایل '+localReplayName+' — نتیجهٔ ثبت‌شده: '+final:'بازپخش دور و بازی '+arenaMonitor.key+' — نتیجهٔ ثبت‌شده: '+final+(m?.status==='failed'?' — بازی ناموفق/لاگ ناقص':'');
  $('monitorBadge').textContent='بازپخش';
 }
 function monitorTick(){
@@ -235,6 +237,7 @@ function monitorTick(){
  arenaMonitor.timer=setTimeout(monitorTick,arenaMonitor.data.step_ms/Number($('monitorSpeed').value||1));
 }
 async function loadMonitorReplay(){
+ if(monitorSource==='file')return;
  if(!job||!arenaMonitor.key)return;
  const token=++arenaMonitor.request,api=job.api,id=job.id,key=arenaMonitor.key;
  monitorClear();arenaMonitor.loading=true;$('monitorMode').value='replay';$('monitorLoad').disabled=true;
@@ -255,6 +258,7 @@ function stopDirectLive(){
  if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);directLive.watchdog=null;
 }
 function startDirectLive(){
+ if(monitorSource==='file')return;
  if(typeof EventSource==='undefined'||!job||!report||report.demo)return;
  if(!['queued','running'].includes(report.status)){stopDirectLive();return;}
  const key=job.api+'/'+job.id;if(directLive.test===key)return;
@@ -283,6 +287,7 @@ function startDirectLive(){
  source.onerror=()=>{if(directLive.source===source&&$('monitorMode').value==='live')monitorLive();};
 }
 function monitorLive(){
+ if(monitorSource==='file')return;
  const fresh=directLive.frames.get(arenaMonitor.key);
  if(fresh&&Date.now()-fresh.received<3500){
   monitorDisplay(fresh.frame);$('monitorBadge').textContent='پخش مستقیم';
@@ -295,6 +300,7 @@ function monitorLive(){
  }else{monitorDisplay(null);$('monitorBadge').textContent='بدون دادهٔ زنده';$('monitorInfo').textContent=selectedMatch()?'این بازی پایان یافته؛ «دریافت بازپخش» را بزن.':live&&live.round+'/'+live.game===arenaMonitor.key?'این اجرا هنوز دادهٔ زمین نفرستاده؛ منتظر به‌روزرسانی بمان یا پس از پایان، بازپخش را دریافت کن.':'این بازی هنوز شروع نشده است.';}
 }
 function updateMonitor(){
+ if(monitorSource==='file')return;
  if(!$('pitch').getContext||!report)return;
  startDirectLive();
  const test=String(report.id||'');
@@ -319,6 +325,75 @@ $('monitorMode').addEventListener('change',()=>{arenaMonitor.request++;arenaMoni
 $('monitorLoad').addEventListener('click',loadMonitorReplay);
 $('monitorPlay').addEventListener('click',()=>{if(arenaMonitor.playing){monitorStop();return;}if(!arenaMonitor.data)return;if(arenaMonitor.index>=arenaMonitor.data.frames.length-1)arenaMonitor.index=0;arenaMonitor.playing=true;$('monitorPlay').textContent='توقف موقت ❚❚';monitorTick();});
 $('monitorSeek').addEventListener('input',()=>{monitorStop();arenaMonitor.index=Number($('monitorSeek').value);monitorReplayFrame();});
+
+function rcgRecord(line){
+ const tokens=line.match(/"(?:\\.|[^"\\])*"|[()]|[^\s()]+/g)||[],stack=[];let root;
+ for(const token of tokens){
+  if(token==='('){const a=[];if(stack.length)stack[stack.length-1].push(a);else if(root)throw Error('رکورد RCG نامعتبر است.');else root=a;stack.push(a);if(stack.length>64)throw Error('ساختار فایل بیش از حد پیچیده است.');}
+  else if(token===')'){if(!stack.length)throw Error('پرانتز نامعتبر در RCG.');stack.pop();}
+  else{if(!stack.length)throw Error('رکورد RCG نامعتبر است.');stack[stack.length-1].push(token.startsWith('"')?token.slice(1,-1):token);}
+ }
+ if(stack.length||!root)throw Error('رکورد RCG ناقص است.');return root;
+}
+async function parseLocalRCG(text,current=()=>true){
+ const lines=text.split(/\r?\n/);
+ if(!['ULG4','ULG5'].includes(lines[0]?.trim()))throw Error('این نسخه فقط RCG متنی ULG4 و ULG5 را می‌خواند؛ فایل RCL یا RCG باینری قابل خواندن نیست.');
+ const frames=[];let names=['Left','Right'],score=[0,0],mode='before_kick_off',step=100;
+ const num=v=>{const n=Number(v);if(!Number.isFinite(n))throw Error('مختصات نامعتبر در RCG.');return n;};
+ for(let i=1;i<lines.length;i++){
+  if(i%400===0){await new Promise(r=>setTimeout(r,0));if(!current())return null;}
+  const line=lines[i].trimStart();if(!/^\((show|team|playmode|server_param)\s/.test(line))continue;
+  if(line.length>262144)throw Error('رکورد RCG بیش از حد بزرگ است.');
+  const rec=rcgRecord(line);
+  if(rec[0]==='team'){names=rec.slice(2,4);score=[num(rec[4]),num(rec[5])];}
+  else if(rec[0]==='playmode')mode=rec[2];
+  else if(rec[0]==='server_param'){const p=rec.find(x=>Array.isArray(x)&&x[0]==='simulator_step');if(p)step=Math.max(1,Math.min(1000,num(p[1])));}
+  else{
+   const frame={cycle:num(rec[1]),ball:null,players:[],names:[...names],score:[...score],mode};
+   for(const item of rec.slice(2)){
+    if(!Array.isArray(item))continue;
+    if(item[0]==='pm')frame.mode=item[1];
+    else if(item[0]==='tm'){frame.names=item.slice(1,3);frame.score=[num(item[3]),num(item[4])];}
+    else if(Array.isArray(item[0])){
+     if(item[0][0]==='b')frame.ball=[num(item[1]),num(item[2])];
+     else if(['l','r'].includes(item[0][0])){
+      const state=parseInt(item[2],16);
+      if(state&&!(state&(0x100|0x200|0x80000)))frame.players.push([item[0][0],num(item[0][1]),num(item[3]),num(item[4]),item.length>7?num(item[7]):0,!!(state&8)]);
+     }
+    }
+   }
+   if(frame.players.length>22)throw Error('تعداد بازیکن‌های فایل نامعتبر است.');
+   frames.push(frame);names=frame.names;score=frame.score;mode=frame.mode;
+   if(frames.length>50000)throw Error('حداکثر ۵۰ هزار فریم پشتیبانی می‌شود.');
+  }
+ }
+ if(!frames.length)throw Error('در این فایل دادهٔ زمین پیدا نشد.');
+ if(['time_over','2'].includes(String(mode)))frames[frames.length-1]={...frames[frames.length-1],score,mode};
+ return {frames,step_ms:step,final_score:score,team_names:names};
+}
+function showLocalReplay(){
+ if(!localReplay){monitorDisplay(null);$('monitorBadge').textContent='انتخاب فایل RCG';$('monitorInfo').textContent='فایل RCG را از دستگاه انتخاب کن.';return;}
+ arenaMonitor.data=localReplay;arenaMonitor.index=0;$('monitorSeek').max=localReplay.frames.length-1;$('monitorSeek').disabled=false;$('monitorPlay').disabled=false;monitorReplayFrame();
+}
+$('monitorSource').addEventListener('change',()=>{
+ monitorSource=$('monitorSource').value==='file'?'file':'server';localRead++;arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();
+ $('monitorFilePanel').className=monitorSource==='file'?'':'hidden';$('monitorServerPanel').className=monitorSource==='file'?'monitor-toolbar hidden':'monitor-toolbar';
+ if(monitorSource==='file'){stopDirectLive();showLocalReplay();}
+ else{$('monitorMode').value='live';updateMonitor();if(!report){monitorDisplay(null);$('monitorBadge').textContent='منتظر انتخاب تست';$('monitorInfo').textContent='پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.';}}
+});
+$('monitorFile').addEventListener('change',async()=>{
+ const file=$('monitorFile').files[0];if(!file)return;
+ const token=++localRead;monitorClear();localReplay=null;
+ $('monitorBadge').textContent='خواندن فایل';$('monitorInfo').textContent='در حال خواندن RCG…';monitorDisplay(null);
+ try{
+  if(!/\.rcg$/i.test(file.name))throw Error('فایل با پسوند .rcg انتخاب کن.');
+  if(file.size>128*1024*1024)throw Error('حداکثر حجم فایل RCG برابر ۱۲۸ MB است.');
+  const data=await parseLocalRCG(await file.text(),()=>token===localRead&&monitorSource==='file');
+  if(!data||token!==localRead||monitorSource!=='file')return;
+  localReplay=data;localReplayName=file.name;showLocalReplay();
+ }catch(e){if(token===localRead&&monitorSource==='file'){$('monitorBadge').textContent='خطای فایل RCG';$('monitorInfo').textContent=e.message;}}
+});
+
 drawPitch(null);
 
 </script></body></html>
