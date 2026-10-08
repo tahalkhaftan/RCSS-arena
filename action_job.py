@@ -20,7 +20,7 @@ def main():
     gh=storage_client();gh.require_private();ident=int(os.environ['RELEASE_ID']);rel=gh.release(ident)
     if not is_arena_release(rel):raise ValueError('Invalid release')
     assets=gh.assets(ident);config=validate(json.loads(gh.read_asset(assets['config.json'])))
-    if config['rounds']*config['games_per_round']>50:raise ValueError('Maximum 50 matches')
+    if config['rounds']*config['games_per_round']>500:raise ValueError('Maximum 500 matches')
     root=Path('job-data').resolve();root.mkdir(exist_ok=True)
     state={'id':str(ident),'status':'queued','demo':False,'server_version':'19.0.0','config':config,'matches':[],'total':config['rounds']*config['games_per_round'],'started_at':rel['created_at'],'archive_ready':False,'publication_pending':True}
     publisher=None

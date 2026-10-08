@@ -174,7 +174,7 @@ class Handler(BaseHandler):
                 return self.send(202,{'status':'cancellation_requested'})
             if path!='/api/tests':return self.send(404,{'error':'Not found'})
             length=int(self.headers.get('Content-Length',0))
-            if not 0<length<=32*1024**2:return self.send(413,{'error':'Maximum 32 MB for both teams combined in this free version'})
+            if length<=0:return self.send(413,{'error':'Empty upload'})
             ctype=self.headers.get('Content-Type','')
             if not ctype.startswith('multipart/form-data'):raise ValueError('Expected multipart upload')
             payload=self.rfile.read(length)
@@ -183,7 +183,7 @@ class Handler(BaseHandler):
             config=json.loads(fields['config'])
             teams=resolve_teams(config,fields)
             config=validate(config)
-            if config['rounds']*config['games_per_round']>50:raise ValueError('Free version: maximum 50 matches per request')
+            if config['rounds']*config['games_per_round']>500:raise ValueError('Maximum 500 matches per request')
             # Single Render instance; avoid concurrent requests while creating release.
             with LOCK:
                 runs=workflow.json('/actions/workflows/matches.yml/runs?per_page=100')['workflow_runs']

@@ -26,8 +26,6 @@ def resolve_teams(config, fields):
             if not blob:
                 raise ValueError('Choose a preset or upload a ZIP for both teams')
         blobs[side] = blob
-    if sum(map(len, blobs.values())) > 32 * 1024**2:
-        raise ValueError('Maximum 32 MB for both teams combined')
     return blobs
 
 def archive_bytes(team):

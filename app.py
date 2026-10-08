@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 from runner import run_job,results_only
 
 DATA=Path(os.environ.get('DATA_DIR','./data')).resolve(); DATA.mkdir(parents=True,exist_ok=True)
-JOBS={}; LOCK=threading.RLock(); UPLOAD_LIMIT=int(os.environ.get('MAX_UPLOAD_MB','256'))*1024**2
+JOBS={}; LOCK=threading.RLock()
 
 def write(job):
     with LOCK:
@@ -39,7 +39,7 @@ def extract(blob,dest):
     dest=dest.resolve()
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         infos=z.infolist()
-        if len(infos)>20000 or sum(i.file_size for i in infos)>1024**3: raise ValueError('ZIP extracted size exceeds 1 GiB or too many files')
+        if len(infos)>20000: raise ValueError('ZIP has too many files')
         entries=[]; links={}; seen=set()
         for i in infos:
             name=i.filename
@@ -92,8 +92,8 @@ def extract(blob,dest):
 
 def validate(c):
     for key in ('rounds','games_per_round'):
-        if type(c.get(key)) is not int or not 1<=c[key]<=100: raise ValueError('Invalid match counts')
-    if c['rounds']*c['games_per_round']>1000: raise ValueError('Maximum 1000 matches')
+        if type(c.get(key)) is not int or not 1<=c[key]<=500: raise ValueError('Invalid match counts')
+    if c['rounds']*c['games_per_round']>500: raise ValueError('Maximum 500 matches')
     if type(c.get('synch_mode')) is not bool: raise ValueError('synch_mode must be boolean')
     for side in ('left','right'):
         t=c.get(side,{})
@@ -148,7 +148,7 @@ class Handler(BaseHTTPRequestHandler):
         root=None
         try:
             length=int(self.headers.get('Content-Length','0'))
-            if not 0<length<=UPLOAD_LIMIT: self.send(413,{'error':'Upload exceeds limit'}); return
+            if length<=0: self.send(413,{'error':'Empty upload'}); return
             ctype=self.headers.get('Content-Type','')
             if not ctype.startswith('multipart/form-data'): raise ValueError('Expected multipart upload')
             payload=self.rfile.read(length)
