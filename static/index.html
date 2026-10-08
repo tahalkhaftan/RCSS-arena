@@ -54,7 +54,7 @@
 <p class="foot" id="monitorInfo" aria-live="polite">پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.</p>
 </section>
 
-<section class="card results"><div class="result-head"><div><h2>گزارش تست</h2><p id="reportNote">پس از شروع، آمار و JSON نتایج اینجا نمایش داده می‌شوند.</p></div><button class="btn primary" id="zip" disabled>دانلود ZIP لاگ‌ها</button></div><div class="stats"><div class="stat"><strong id="completed">0</strong><span>بازی کامل‌شده</span></div><div class="stat"><strong id="leftWins">0</strong><span>برد تیم چپ</span></div><div class="stat"><strong id="draws">0</strong><span>مساوی</span></div><div class="stat"><strong id="rightWins">0</strong><span>برد تیم راست</span></div><div class="stat"><strong id="leftGoals">0</strong><span>گل تیم چپ</span></div><div class="stat"><strong id="rightGoals">0</strong><span>گل تیم راست</span></div></div><div class="stats" style="margin-top:12px;grid-template-columns:repeat(4,1fr)"><div class="stat"><strong id="posLeft">—</strong><span>میانگین مالکیت چپ ٪</span></div><div class="stat"><strong id="posRight">—</strong><span>میانگین مالکیت راست ٪</span></div><div class="stat"><strong id="posFree">—</strong><span>میانگین توپ آزاد ٪</span></div><div class="stat"><strong id="posShared">—</strong><span>میانگین کنترل مشترک ٪</span></div></div><div class="json-head"><h2 dir="ltr">results.json</h2><div class="buttons"><button class="btn" id="copy" disabled>کپی JSON</button><button class="btn" id="download" disabled>دانلود JSON</button></div></div><pre id="json" tabindex="0" aria-label="JSON نتایج">{
+<section class="card results"><div class="result-head"><div><h2 id="resultsTitle">گزارش تست</h2><p id="reportNote">پس از شروع، آمار و JSON نتایج اینجا نمایش داده می‌شوند.</p></div><button class="btn primary" id="zip" disabled>دانلود ZIP لاگ‌ها</button></div><div class="stats"><div class="stat"><strong id="completed">0</strong><span>بازی کامل‌شده</span></div><div class="stat"><strong id="leftWins">0</strong><span>برد تیم چپ</span></div><div class="stat"><strong id="draws">0</strong><span>مساوی</span></div><div class="stat"><strong id="rightWins">0</strong><span>برد تیم راست</span></div><div class="stat"><strong id="leftGoals">0</strong><span>گل تیم چپ</span></div><div class="stat"><strong id="rightGoals">0</strong><span>گل تیم راست</span></div></div><div class="stats" style="margin-top:12px;grid-template-columns:repeat(4,1fr)"><div class="stat"><strong id="posLeft">—</strong><span>میانگین مالکیت چپ ٪</span></div><div class="stat"><strong id="posRight">—</strong><span>میانگین مالکیت راست ٪</span></div><div class="stat"><strong id="posFree">—</strong><span>میانگین توپ آزاد ٪</span></div><div class="stat"><strong id="posShared">—</strong><span>میانگین کنترل مشترک ٪</span></div></div><div class="json-head"><h2 dir="ltr">results.json</h2><div class="buttons"><button class="btn" id="copy" disabled>کپی JSON</button><button class="btn" id="download" disabled>دانلود JSON</button></div></div><pre id="json" tabindex="0" aria-label="JSON نتایج">{
   "status": "idle",
   "matches": []
 }</pre><p class="foot" id="zipNote">ZIP لاگ‌های واقعی بعد از پایان تست و اتصال سرویس قابل دانلود است.</p><p class="foot" id="summaryExtra"></p></section>
@@ -85,7 +85,8 @@ setTheme(savedTheme);
 $('themeLight').addEventListener('click',()=>setTheme('light'));
 $('themeDark').addEventListener('click',()=>setTheme('dark'));
 // Keep monitor telemetry out of the displayed, copied and downloaded results.
-function resultsJSON(){return JSON.stringify(report,(key,value)=>['frame','frames','players','ball'].includes(key)?undefined:value,2);}
+function resultsReport(){return monitorSource==='file'&&localResults?localResults:report||{status:'idle',total:0,matches:[]};}
+function resultsJSON(){return JSON.stringify(resultsReport(),(key,value)=>['frame','frames','players','ball'].includes(key)?undefined:value,2);}
 
 $('api').value=location.protocol.startsWith('http')?location.origin:'';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -106,11 +107,15 @@ function validateTeamFields(){
 }
 function settings(){return{left:{preset_id:$('leftPreset').value,name:$('leftName').value.trim(),directory:$('leftDir').value.trim(),command:$('leftCmd').value.trim()},right:{preset_id:$('rightPreset').value,name:$('rightName').value.trim(),directory:$('rightDir').value.trim(),command:$('rightCmd').value.trim()},rounds:Number($('rounds').value),games_per_round:Number($('games').value),synch_mode:$('speed').value==='sync'}}
 function setRunning(on){running=on;document.querySelectorAll('#form input,#form select,#start,#mode,#api').forEach(el=>el.disabled=on);$('stop').disabled=!on;['left','right'].forEach(side=>{if($(side+'Preset').value){[side+'Name',side+'Dir',side+'Cmd'].forEach(id=>$(id).readOnly=true);$(side+'File').disabled=true;}})}
-function render(){const matches=report.matches;let lw=0,rw=0,d=0,lg=0,rg=0,c=0;for(const m of matches){if(m.status!=='completed')continue;const a=m.left_score,b=m.right_score;if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0)continue;c++;lg+=a;rg+=b;if(a>b)lw++;else if(a<b)rw++;else d++}for(const [id,val] of Object.entries({completed:c,leftWins:lw,rightWins:rw,draws:d,leftGoals:lg,rightGoals:rg}))$(id).textContent=val;
-const avg={};for(const [key,id] of Object.entries({left_percent:'posLeft',right_percent:'posRight',free_percent:'posFree',shared_percent:'posShared'})){const vals=matches.filter(m=>m.status==='completed'&&typeof m.possession?.[key]==='number').map(m=>m.possession[key]);avg[key]=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*1000)/1000:null;$(id).textContent=avg[key]===null?'—':avg[key].toFixed(1)}report.summary={...report.summary,completed:c,left_wins:lw,draws:d,right_wins:rw,left_goals:lg,right_goals:rg,average_possession:avg};$('json').textContent=resultsJSON();$('copy').disabled=false;$('download').disabled=false;const live=report.progress;const fraction=report.status==='running'&&live?Number(live.percent||0)/100:0;const progress=Math.min(100,Math.round((matches.length+fraction)/report.total*100))||0;$('bar').style.width=progress+'%';document.querySelector('.track').setAttribute('aria-valuenow',String(progress));$('counter').textContent=matches.length+' / '+report.total;$('summaryExtra').textContent='بازی‌های ناموفق یا ناقص: '+(matches.length-c);
+function render(){const data=resultsReport(),isFile=monitorSource==='file'&&!!localResults;
+ $('resultsTitle').textContent=isFile?'نتایج RCG':'گزارش تست';
+ $('reportNote').textContent=isFile?'نتایج فایل مستقل: '+localReplayName:report?.demo?'پیش‌نمایش رابط — نتایج ساختگی‌اند.':'آمار کل تست و JSON نتیجهٔ هر مسابقه';
+ $('zip').disabled=monitorSource==='file'||!logReady;
+ const matches=data.matches;let lw=0,rw=0,d=0,lg=0,rg=0,c=0;for(const m of matches){if(m.status!=='completed')continue;const a=m.left_score,b=m.right_score;if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0)continue;c++;lg+=a;rg+=b;if(a>b)lw++;else if(a<b)rw++;else d++}for(const [id,val] of Object.entries({completed:c,leftWins:lw,rightWins:rw,draws:d,leftGoals:lg,rightGoals:rg}))$(id).textContent=val;
+const avg={};for(const [key,id] of Object.entries({left_percent:'posLeft',right_percent:'posRight',free_percent:'posFree',shared_percent:'posShared'})){const vals=matches.filter(m=>m.status==='completed'&&typeof m.possession?.[key]==='number').map(m=>m.possession[key]);avg[key]=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*1000)/1000:null;$(id).textContent=avg[key]===null?'—':avg[key].toFixed(1)}data.summary={...data.summary,completed:c,left_wins:lw,draws:d,right_wins:rw,left_goals:lg,right_goals:rg,average_possession:avg};$('json').textContent=resultsJSON();$('copy').disabled=false;$('download').disabled=false;const live=report?.progress;const fraction=report?.status==='running'&&live?Number(live.percent||0)/100:0;const progress=Math.min(100,Math.round((matches.length+fraction)/(report?.total||1)*100))||0;$('bar').style.width=progress+'%';document.querySelector('.track').setAttribute('aria-valuenow',String(progress));$('counter').textContent=(report?.matches.length||0)+' / '+(report?.total||0);$('summaryExtra').textContent='بازی‌های ناموفق یا ناقص: '+(matches.length-c);
 $('liveProgress').textContent=live?'بازی '+live.match_index+' — سایکل '+live.cycle+' از '+live.expected_cycles+' — '+live.percent+'٪'+(live.left_score!==undefined?' — نتیجهٔ فعلی: '+live.left_score+' : '+live.right_score:'')+' — بازیکن‌های متصل: '+(live.left_players??'—')+' / '+(live.right_players??'—'):'پیشرفت مسابقه پس از اتصال تیم‌ها نمایش داده می‌شود.';
 const failures=matches.filter(m=>m.status==='failed').map(m=>'دور '+m.round+'، بازی '+m.game+': '+(m.error||'خطای نامشخص'));
-$('error').textContent=[report.error,...failures].filter(Boolean).join('\n');updateMonitor();}
+$('error').textContent=[report?.error,...failures].filter(Boolean).join('\n');updateMonitor();}
 
 async function request(url,options={}){const res=await fetch(url,{credentials:'include',signal:controller?.signal,...options});if(!res.ok){let msg='HTTP '+res.status;try{msg=(await res.json()).error||msg}catch{}const error=Error('خطای سرویس: '+msg);error.status=res.status;throw error}return res}
 async function demo(config){for(let r=1;r<=config.rounds;r++){for(let g=1;g<=config.games_per_round;g++){if(!running)return;const index=(r-1)*config.games_per_round+g;$('status').textContent='آزمایشی — بازی '+index+' از '+report.total;await pause(400);if(!running)return;report.matches.push({round:r,game:g,status:'completed',left_team:config.left.name,right_team:config.right.name,left_score:Math.floor(Math.random()*5),right_score:Math.floor(Math.random()*5)});render()}}report.status='completed';render();$('status').textContent='تست آزمایشی تمام شد — نتایج ساختگی';setRunning(false)}
@@ -140,7 +145,7 @@ async function watchJob(){
   $('status').textContent=state.status==='queued'?'در صف آماده‌سازی GitHub':state.progress?.stage==='connecting'?'در حال اتصال تیم‌ها':'در حال اجرای مسابقه‌ها';
   if(['completed','cancelled','failed'].includes(state.status)&&(state.archive_ready||state.publication_pending!==true)){
    $('status').textContent=state.status==='completed'?'تست کامل شد':state.status==='cancelled'?'تست متوقف شد':'اجرای تست ناموفق بود';
-   logReady=state.archive_ready===true;$('zip').disabled=!logReady;setRunning(false);break;
+   logReady=state.archive_ready===true;$('zip').disabled=monitorSource==='file'||!logReady;setRunning(false);break;
   }
   await pause(10000);
  }
@@ -183,12 +188,12 @@ $('recent').addEventListener('click',()=>recoverLatest());
 window.addEventListener('DOMContentLoaded',()=>{if(location.protocol.startsWith('http'))loadPresets();});
 $('stop').addEventListener('click',async()=>{if(!running)return;$('stop').disabled=true;try{if(job){await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/cancel',{method:'POST'});$('status').textContent='درخواست توقف ارسال شد؛ منتظر تأیید سرویس…'}else{running=false;controller?.abort();if(report){report.status='cancelled';render()}setRunning(false);$('status').textContent='تست متوقف شد'}}catch(e){$('error').textContent='توقف تأیید نشد: '+e.message;$('stop').disabled=false}});
 function save(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
-$('download').addEventListener('click',()=>{if(report)save(new Blob([resultsJSON()],{type:'application/json'}),report.demo?'demo-results.json':'results.json')});
+$('download').addEventListener('click',()=>{if(report||localResults)save(new Blob([resultsJSON()],{type:'application/json'}),monitorSource==='file'?'rcg-results.json':report?.demo?'demo-results.json':'results.json')});
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('json').textContent);$('copy').textContent='کپی شد';setTimeout(()=>$('copy').textContent='کپی JSON',1500)}catch{$('error').textContent='کپی خودکار در این مرورگر فعال نیست؛ JSON را انتخاب و کپی کن یا دانلود کن.'}});
-$('zip').addEventListener('click',async()=>{if(!job||!logReady)return;$('zip').disabled=true;try{const response=await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/logs.zip');save(await response.blob(),'rcss-logs-'+job.id.replace(/[^a-zA-Z0-9_-]/g,'_')+'.zip')}catch(e){$('error').textContent='دانلود لاگ ناموفق بود: '+e.message}finally{$('zip').disabled=false}});
+$('zip').addEventListener('click',async()=>{if(monitorSource==='file'||!job||!logReady)return;$('zip').disabled=true;try{const response=await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/logs.zip');save(await response.blob(),'rcss-logs-'+job.id.replace(/[^a-zA-Z0-9_-]/g,'_')+'.zip')}catch(e){$('error').textContent='دانلود لاگ ناموفق بود: '+e.message}finally{$('zip').disabled=false}});
 // The monitor is read-only. Frames never alter the recorded match results.
 const directLive={source:null,test:null,frames:new Map(),received:0,timers:[],watchdog:null};
-let monitorSource='server',localReplay=null,localReplayName='',localRead=0;
+let monitorSource='server',localResults=null,localReplay=null,localReplayName='',localRead=0;
 const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
 function monitorClear(){monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
@@ -377,18 +382,21 @@ function showLocalReplay(){
 $('monitorSource').addEventListener('change',()=>{
  monitorSource=$('monitorSource').value==='file'?'file':'server';localRead++;arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();
  $('monitorFilePanel').className=monitorSource==='file'?'':'hidden';$('monitorServerPanel').className=monitorSource==='file'?'monitor-toolbar hidden':'monitor-toolbar';
- if(monitorSource==='file'){stopDirectLive();showLocalReplay();}
- else{$('monitorMode').value='live';updateMonitor();if(!report){monitorDisplay(null);$('monitorBadge').textContent='منتظر انتخاب تست';$('monitorInfo').textContent='پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.';}}
+ if(monitorSource==='file'){stopDirectLive();showLocalReplay();render();}
+ else{$('monitorMode').value='live';render();updateMonitor();if(!report){monitorDisplay(null);$('monitorBadge').textContent='منتظر انتخاب تست';$('monitorInfo').textContent='پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.';}}
 });
 $('monitorFile').addEventListener('change',async()=>{
  const file=$('monitorFile').files[0];if(!file)return;
- const token=++localRead;monitorClear();localReplay=null;
+ const token=++localRead;monitorClear();localReplay=null;localResults=null;render();
  $('monitorBadge').textContent='خواندن فایل';$('monitorInfo').textContent='در حال خواندن RCG…';monitorDisplay(null);
  try{
   if(!/\.rcg$/i.test(file.name))throw Error('فایل با پسوند .rcg انتخاب کن.');
   const data=await parseLocalRCG(await file.text(),()=>token===localRead&&monitorSource==='file');
   if(!data||token!==localRead||monitorSource!=='file')return;
-  localReplay=data;localReplayName=file.name;showLocalReplay();
+  localReplay=data;localReplayName=file.name;
+  const last=data.frames[data.frames.length-1],complete=['time_over','2'].includes(String(last.mode));
+  localResults={source:'rcg_file',file_name:file.name,status:complete?'completed':'incomplete',total:1,matches:[{round:1,game:1,status:complete?'completed':'incomplete',left_team:data.team_names[0],right_team:data.team_names[1],left_score:data.final_score[0],right_score:data.final_score[1],last_cycle:last.cycle}]};
+  showLocalReplay();render();
  }catch(e){if(token===localRead&&monitorSource==='file'){$('monitorBadge').textContent='خطای فایل RCG';$('monitorInfo').textContent=e.message;}}
 });
 

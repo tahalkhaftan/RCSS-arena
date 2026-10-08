@@ -13,12 +13,12 @@ const rcg='ULG5\n(server_param (simulator_step 100))\n(team 0 Blue Orange 0 0)\n
  await assert.rejects(ctx.parseLocalRCG('ULG5\n'),/داده/);
  el('monitorSource').value='file';el('monitorSource').change();
  el('monitorFile').files=[{name:'match.rcg',size:rcg.length,text:async()=>rcg.replace('ULG5','ULG6')}];await el('monitorFile').change();
- assert.equal(el('monitorScore').textContent,'0 : 0');assert.equal(el('monitorSeek').max,1);
- vm.runInContext("report={id:'server',status:'running',matches:[],config:{},total:1};updateMonitor()",ctx);
+ assert.equal(el('monitorScore').textContent,'0 : 0');assert.equal(el('monitorSeek').max,1);assert.equal(el('resultsTitle').textContent,'نتایج RCG');assert.equal(JSON.parse(el('json').textContent).matches[0].right_score,1);assert.equal(el('leftGoals').textContent,2);assert.equal(el('zip').disabled,true);
+ vm.runInContext("report={id:'server',status:'running',matches:[],config:{},total:1};render();updateMonitor()",ctx);
  assert.equal(el('monitorScore').textContent,'0 : 0','Server updates must not replace a local replay');
  el('monitorSeek').value='1';el('monitorSeek').input();assert.equal(el('monitorScore').textContent,'2 : 1');assert.match(el('monitorInfo').textContent,/match.rcg/);
  el('monitorPlay').click();assert.equal(el('monitorPlay').textContent,'توقف موقت ❚❚');el('monitorPlay').click();
  el('monitorFile').files=[{name:'bad.rcg',size:5,text:async()=>'ULG3'}];await el('monitorFile').change();assert.equal(el('monitorBadge').textContent,'خطای فایل RCG');
- vm.runInContext('report=null',ctx);el('monitorSource').value='server';el('monitorSource').change();assert.equal(el('monitorBadge').textContent,'منتظر انتخاب تست');
+ vm.runInContext('report=null',ctx);el('monitorSource').value='server';el('monitorSource').change();assert.equal(el('monitorBadge').textContent,'منتظر انتخاب تست');assert.equal(el('resultsTitle').textContent,'گزارش تست');assert.equal(JSON.parse(el('json').textContent).source,undefined);
  console.log('PASS: local RCG parsing, upload, playback, seeking, invalid files and server isolation');
 })().catch(e=>{console.error(e);process.exitCode=1});
