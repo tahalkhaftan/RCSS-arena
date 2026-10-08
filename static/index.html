@@ -180,7 +180,7 @@ async function recoverLatest(automatic=false){
  finally{$('recent').disabled=false;}
 }
 $('recent').addEventListener('click',()=>recoverLatest());
-window.addEventListener('DOMContentLoaded',async()=>{if(location.protocol.startsWith('http')){await loadPresets();return recoverLatest(true);}});
+window.addEventListener('DOMContentLoaded',()=>{if(location.protocol.startsWith('http'))loadPresets();});
 $('stop').addEventListener('click',async()=>{if(!running)return;$('stop').disabled=true;try{if(job){await request(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/cancel',{method:'POST'});$('status').textContent='درخواست توقف ارسال شد؛ منتظر تأیید سرویس…'}else{running=false;controller?.abort();if(report){report.status='cancelled';render()}setRunning(false);$('status').textContent='تست متوقف شد'}}catch(e){$('error').textContent='توقف تأیید نشد: '+e.message;$('stop').disabled=false}});
 function save(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
 $('download').addEventListener('click',()=>{if(report)save(new Blob([resultsJSON()],{type:'application/json'}),report.demo?'demo-results.json':'results.json')});
