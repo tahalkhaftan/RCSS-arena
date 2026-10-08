@@ -45,7 +45,7 @@
 <section class="card status" aria-live="polite"><div class="statusline"><span id="status">آمادهٔ شروع</span><span id="counter">0 / 5</span></div><div class="track" role="progressbar" aria-label="پیشرفت تست" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="bar"></div></div><p class="foot" id="liveProgress">پیشرفت مسابقه پس از اتصال تیم‌ها نمایش داده می‌شود.</p><div id="error" role="alert"></div></section>
 <section class="card monitor" id="matchMonitor" aria-label="مانیتور مسابقه">
 <div class="result-head"><div><div class="team-name-row"><span class="team-picker"><select id="monitorSource" aria-label="منبع مانیتور" title="منبع مانیتور"><option value="server">اتصال به سرور</option><option value="file">خواندن فایل RCG</option></select><span aria-hidden="true">▾</span></span><h2>مانیتور مسابقه</h2></div><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها ممکن است با تأخیر همراه باشد؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
-<div id="monitorFilePanel" class="hidden"><label class="upload"><strong>انتخاب فایل RCG برای بازپخش</strong><small>فایل متنی ULG4 یا ULG5؛ فایل فقط در مرورگر خوانده می‌شود و به سرور ارسال نمی‌شود.</small><input id="monitorFile" type="file" accept=".rcg"></label></div>
+<div id="monitorFilePanel" class="hidden"><label class="upload"><strong>انتخاب فایل RCG برای بازپخش</strong><small>فایل متنی ULG4، ULG5 یا ULG6؛ فایل فقط در مرورگر خوانده می‌شود و به سرور ارسال نمی‌شود.</small><input id="monitorFile" type="file" accept=".rcg"></label></div>
 <div class="monitor-toolbar" id="monitorServerPanel"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div>
 <div class="monitor-score" dir="ltr"><span id="monitorLeft">Left</span><strong id="monitorScore">— : —</strong><span id="monitorRight">Right</span></div>
 <canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
@@ -215,9 +215,9 @@ function drawPitch(frame){
  if(frame.ball?.every(Number.isFinite)){c.fillStyle='#fff';c.strokeStyle='#071a13';c.lineWidth=2;c.beginPath();c.arc(X(frame.ball[0]),Y(frame.ball[1]),5,0,Math.PI*2);c.fill();c.stroke();}
 }
 function monitorDisplay(frame){
- drawPitch(frame);const match=selectedMatch();
- $('monitorLeft').textContent=frame?.names?.[0]||match?.left_team||report?.config?.left?.name||'Left';
- $('monitorRight').textContent=frame?.names?.[1]||match?.right_team||report?.config?.right?.name||'Right';
+ drawPitch(frame);const match=selectedMatch(),serverReport=monitorSource==='server'?report:null;
+ $('monitorLeft').textContent=frame?.names?.[0]||match?.left_team||serverReport?.config?.left?.name||'Left';
+ $('monitorRight').textContent=frame?.names?.[1]||match?.right_team||serverReport?.config?.right?.name||'Right';
  $('monitorScore').textContent=frame?.score?frame.score.join(' : '):'— : —';
  $('monitorCycle').textContent=frame?'سایکل: '+frame.cycle+' — '+frame.mode:'سایکل: —';
 }
@@ -337,7 +337,7 @@ function rcgRecord(line){
 }
 async function parseLocalRCG(text,current=()=>true){
  const lines=text.split(/\r?\n/);
- if(!['ULG4','ULG5'].includes(lines[0]?.trim()))throw Error('این نسخه فقط RCG متنی ULG4 و ULG5 را می‌خواند؛ فایل RCL یا RCG باینری قابل خواندن نیست.');
+ if(!['ULG4','ULG5','ULG6'].includes(lines[0]?.replace(/^\uFEFF/,'').trim()))throw Error('این نسخه فقط RCG متنی ULG4، ULG5 و ULG6 را می‌خواند؛ فایل RCL یا RCG باینری قابل خواندن نیست.');
  const frames=[];let names=['Left','Right'],score=[0,0],mode='before_kick_off',step=100;
  const num=v=>{const n=Number(v);if(!Number.isFinite(n))throw Error('مختصات نامعتبر در RCG.');return n;};
  for(let i=1;i<lines.length;i++){

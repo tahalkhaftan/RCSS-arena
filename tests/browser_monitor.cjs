@@ -34,7 +34,7 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await page.setViewportSize({width:390,height:844});await page.locator('#matchMonitor').screenshot({path:'/tmp/arena-monitor-mobile.png'});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.selectOption('#monitorSource','file');
- await page.locator('#monitorFile').setInputFiles({name:'local-match.rcg',mimeType:'text/plain',buffer:Buffer.from('ULG5\n(team 0 LocalBlue LocalOrange 1 2)\n(show 1 ((b) 0 0 0 0) ((l 1) 0 9 -40 0 0 0 90))\n(show 6000 ((b) 10 0 0 0))\n(playmode 6000 time_over)\n')});
+ await page.locator('#monitorFile').setInputFiles({name:'local-match.rcg',mimeType:'text/plain',buffer:Buffer.from('ULG6\n(team 0 LocalBlue LocalOrange 1 2)\n(show 1 ((b) 0 0 0 0) ((l 1) 0 9 -40 0 0 0 90))\n(show 6000 ((b) 10 0 0 0))\n(playmode 6000 time_over)\n')});
  await page.waitForFunction(()=>document.getElementById('monitorLeft').textContent==='LocalBlue');
  assert.equal(await page.locator('#monitorScore').textContent(),'1 : 2');
  await page.locator('#monitorSeek').fill('1');await page.locator('#monitorSeek').dispatchEvent('input');
