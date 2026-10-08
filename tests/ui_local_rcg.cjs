@@ -14,6 +14,25 @@ const rcg='ULG5\n(server_param (simulator_step 100))\n(team 0 Blue Orange 0 0)\n
  el('monitorSource').value='file';el('monitorSource').change();
  el('monitorFile').files=[{name:'match.rcg',size:rcg.length,text:async()=>rcg.replace('ULG5','ULG6')}];await el('monitorFile').change();
  assert.equal(el('monitorScore').textContent,'0 : 0');assert.equal(el('monitorSeek').max,1);assert.equal(el('resultsTitle').textContent,'نتایج RCG');assert.equal(JSON.parse(el('json').textContent).matches[0].right_score,1);assert.equal(el('leftGoals').textContent,2);assert.equal(el('zip').disabled,true);
+
+ // Start a real server request while an independent RCG is playing.
+ ctx.FormData=function(){this.append=()=>{}};
+ const requests=[];ctx.fetch=async(url,options={})=>{requests.push({url,method:options.method||'GET'});return {ok:true,json:async()=>options.method==='POST'?{id:'new-server'}:{id:'new-server',status:'completed',matches:[],config:{rounds:1,games_per_round:1},total:1,archive_ready:true}};};
+ for(const side of ['left','right']){el(side+'Name').value='Server '+side;el(side+'Dir').value='team/';el(side+'Cmd').value='./start';el(side+'Preset').value='preset';}
+ el('rounds').value='1';el('games').value='1';el('mode').value='server';el('speed').value='sync';
+ el('monitorPlay').click();const playingScore=el('monitorScore').textContent;assert.equal(vm.runInContext('arenaMonitor.playing',ctx),true);
+ await el('form').submit({preventDefault(){}});
+ assert.equal(requests[0].method,'POST');assert.equal(requests[1].method,'GET');assert.equal(vm.runInContext('arenaMonitor.playing',ctx),true);
+ assert.equal(el('monitorScore').textContent,playingScore);assert.equal(JSON.parse(el('json').textContent).source,'rcg_file');
+ vm.runInContext('monitorStop();arenaMonitor.index=0',ctx);
+ // A playback score change produces a three-second notice, without duplicates.
+ const timers=[];ctx.setTimeout=(callback,ms)=>{timers.push({callback,ms});return timers.length;};ctx.clearTimeout=()=>{};
+ vm.runInContext('arenaMonitor.playing=true;monitorTick()',ctx);
+ assert.equal(el('goalToast').className,'goal-toast visible');assert.match(el('goalToastTitle').textContent,/Blue/);assert.match(el('goalToastScore').textContent,/2 : 1/);
+ const notice=timers.find(t=>t.ms===3000);assert.ok(notice);
+ vm.runInContext('announceReplayGoal(arenaMonitor.data.frames[1],arenaMonitor.data.frames[1])',ctx);
+ assert.equal(timers.filter(t=>t.ms===3000).length,1);notice.callback();assert.equal(el('goalToast').className,'goal-toast');
+ vm.runInContext('monitorStop();arenaMonitor.index=0;monitorReplayFrame()',ctx);
  vm.runInContext("report={id:'server',status:'running',matches:[],config:{},total:1};render();updateMonitor()",ctx);
  assert.equal(el('monitorScore').textContent,'0 : 0','Server updates must not replace a local replay');
  el('monitorSeek').value='1';el('monitorSeek').input();assert.equal(el('monitorScore').textContent,'2 : 1');assert.match(el('monitorInfo').textContent,/match.rcg/);
