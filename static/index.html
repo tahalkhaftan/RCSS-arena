@@ -32,6 +32,16 @@
 .goal-toast.visible{opacity:1;transform:translateX(0)}
 .goal-toast strong,.goal-toast span{display:block}.goal-toast strong{color:var(--green)}.goal-toast span{font:700 20px/1.8 Arial;text-align:center;margin-top:6px}
 @media(prefers-reduced-motion:reduce){.goal-toast{transition:none}}
+.monitor-score{display:grid;grid-template-columns:minmax(0,1fr) 150px minmax(0,1fr);gap:14px;align-items:center}
+.monitor-score .score-team{display:flex;align-items:center;gap:14px;min-width:0}.monitor-score .score-right{justify-content:flex-end}
+.monitor-score .score-team span{max-width:none;font-size:18px;color:var(--text);overflow-wrap:anywhere}
+.monitor-score .score-team strong{font-size:30px}.score-left strong{color:var(--blue)}.score-right strong{color:#ffb35c}
+.cycle-box{border:1px solid var(--line);border-radius:9px;padding:8px 6px;background:var(--panel);text-align:center;font:600 14px/1.6 Tahoma;color:var(--muted)}
+.monitor-ratings{display:grid;grid-template-columns:minmax(0,1fr) 150px minmax(0,1fr);gap:14px;margin-top:12px}
+.team-rating{display:flex;align-items:center;gap:8px;width:max-content;max-width:100%;padding:8px 12px;border:1px solid #67c7b0;border-radius:10px;background:#dff7ef;color:#165c48}
+.team-rating span{font:12px Tahoma}.team-rating strong{font:700 24px Arial}.team-rating small{font:12px Arial;color:#367565}
+.rating-right{justify-self:end;background:#fff0df;color:#885019;border-color:#ddb180}.rating-right small{color:#926946}
+@media(max-width:700px){.monitor-score,.monitor-ratings{grid-template-columns:minmax(0,1fr) 95px minmax(0,1fr);gap:6px}.monitor-score .score-team{gap:6px}.monitor-score .score-team span{font-size:12px}.monitor-score .score-team strong{font-size:24px}.cycle-box{font-size:11px}.team-rating{padding:6px;gap:4px;flex-wrap:wrap}.team-rating span{font-size:10px}.team-rating strong{font-size:19px}}
 </style>
 </head>
 <body><div class="goal-toast" id="goalToast" role="status" aria-live="polite" aria-atomic="true"><strong id="goalToastTitle"></strong><span id="goalToastScore" dir="ltr"></span></div><main>
@@ -51,9 +61,11 @@
 <div class="result-head"><div><div class="team-name-row"><span class="team-picker"><select id="monitorSource" aria-label="منبع مانیتور" title="منبع مانیتور"><option value="server">اتصال به سرور</option><option value="file">خواندن فایل RCG</option></select><span aria-hidden="true">▾</span></span><h2>مانیتور مسابقه</h2></div><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها ممکن است با تأخیر همراه باشد؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
 <div id="monitorFilePanel" class="hidden"><label class="upload"><strong>انتخاب فایل RCG برای بازپخش</strong><small>فایل متنی ULG4، ULG5 یا ULG6؛ فایل فقط در مرورگر خوانده می‌شود و به سرور ارسال نمی‌شود.</small><input id="monitorFile" type="file" accept=".rcg"></label></div>
 <div id="monitorServerPanel"><div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><div><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><label class="foot" style="display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:0;cursor:pointer"><input type="checkbox" id="monitorAutoNext" style="width:auto;margin:0;accent-color:var(--green)">رفتن خودکار به بازی بعدی</label></div><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div></div>
-<div class="monitor-score" dir="ltr"><span id="monitorLeft">Left</span><strong id="monitorScore">— : —</strong><span id="monitorRight">Right</span></div>
+<div class="monitor-score" dir="ltr"><div class="score-team score-left"><span id="monitorLeft">Left</span><strong id="monitorLeftGoals">—</strong></div><div class="cycle-box" id="monitorCycle" dir="rtl">سایکل: —</div><div class="score-team score-right"><strong id="monitorRightGoals">—</strong><span id="monitorRight">Right</span></div><span id="monitorScore" class="hidden" aria-hidden="true">— : —</span></div>
 <canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
-<div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label><span id="monitorCycle">سایکل: —</span></div>
+<div class="monitor-ratings" dir="ltr"><div class="team-rating rating-left"><span>نمرهٔ تیم چپ</span><strong id="monitorLeftRating">—</strong><small>/ 10</small></div><div></div><div class="team-rating rating-right"><span>نمرهٔ تیم راست</span><strong id="monitorRightRating">—</strong><small>/ 10</small></div></div>
+<p class="foot" id="monitorRatingNote">نمرهٔ تخمینی بر اساس کنترل توپ، خطر موقعیت و گل‌ها؛ در انتظار دادهٔ کافی.</p>
+<div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label></div>
 <input type="range" id="monitorSeek" min="0" max="0" value="0" disabled aria-label="جابه‌جایی در بازپخش">
 <p class="foot">رنگ استامینا: نزدیک ۱۰۰۰ و بالاتر، رنگ روشن تیم؛ نزدیک صفر، رنگ مایل به سفید با حفظ ته‌رنگ تیم.</p>
 <p class="foot" id="monitorConcurrent" aria-live="polite"></p>
@@ -262,12 +274,54 @@ function drawPitch(frame){
  }
  if(frame.ball?.every(Number.isFinite)){c.fillStyle='#fff';c.strokeStyle='#071a13';c.lineWidth=2;c.beginPath();c.arc(X(frame.ball[0]),Y(frame.ball[1]),5,0,Math.PI*2);c.fill();c.stroke();}
 }
+
+function newRatingStats(){return {last:-1,count:0,time:0,control:[0,0],danger:[0,0],score:[0,0]};}
+function addRatingFrame(stats,frame){
+ if(!frame)return;
+ if(frame.score?.every(Number.isFinite))stats.score=[...frame.score];
+ if(!['3','play_on'].includes(String(frame.mode))||!frame.ball?.every(Number.isFinite)||frame.cycle<=stats.last)return;
+ const weight=stats.last<0?1:Math.min(10,frame.cycle-stats.last);stats.last=frame.cycle;stats.count++;stats.time+=weight;
+ const [x,y]=frame.ball,dist=[Infinity,Infinity],players=(frame.players||[]).filter(p=>Number.isFinite(p[2])&&Number.isFinite(p[3]));
+ for(const p of players){const side=p[0]==='l'?0:1;dist[side]=Math.min(dist[side],Math.hypot(p[2]-x,p[3]-y));}
+ const owner=dist[0]+.15<dist[1]&&dist[0]<=1.3?0:dist[1]+.15<dist[0]&&dist[1]<=1.3?1:-1;
+ if(owner<0)return;
+ stats.control[owner]+=weight;
+ const side=owner===0?'l':'r',keeper=players.find(p=>p[0]===side&&p[5]),goalX=keeper&&Math.abs(keeper[2])>20?-Math.sign(keeper[2])*52.5:owner===0?52.5:-52.5;
+ const dx=goalX-x,dy=-y,distance=Math.hypot(dx,dy);
+ const u=Math.atan2(7.01-y,dx),v=Math.atan2(-7.01-y,dx),difference=Math.abs(u-v),angle=Math.min(difference,2*Math.PI-difference);
+ let blockers=0;
+ for(const p of players.filter(p=>p[0]!==side)){
+  const t=((p[2]-x)*dx+(p[3]-y)*dy)/(distance*distance||1);
+  if(t>0&&t<1){const off=Math.hypot(p[2]-(x+t*dx),p[3]-(y+t*dy));blockers+=Math.exp(-off*off/4);}
+ }
+ const threat=Math.max(0,1-distance/35)*Math.min(1,angle/(Math.PI/2))/(1+.35*blockers);
+ stats.danger[owner]+=weight*threat;
+}
+function ratingValues(stats){
+ if(!stats||stats.count<30||stats.control[0]+stats.control[1]<10)return null;
+ const control=(stats.control[0]-stats.control[1])/(stats.control[0]+stats.control[1]);
+ const danger=(stats.danger[0]-stats.danger[1])/(stats.danger[0]+stats.danger[1]+.05*stats.time);
+ const advantage=1.5*control+2.5*danger+Math.tanh((stats.score[0]-stats.score[1])/3);
+ return [5+advantage,5-advantage].map(n=>Math.round(Math.max(0,Math.min(10,n))*10)/10);
+}
+function replayRatings(data){
+ if(!data.ratingStats){data.ratingStats=newRatingStats();for(const f of data.frames)addRatingFrame(data.ratingStats,f);if(data.final_score)data.ratingStats.score=[...data.final_score];}
+ return ratingValues(data.ratingStats);
+}
+function showTeamRatings(){
+ const replay=monitorSource==='file'||$('monitorMode').value==='replay';
+ const values=replay&&arenaMonitor.data?replayRatings(arenaMonitor.data):!replay?ratingValues(directLive.frames.get(arenaMonitor.key)?.ratingStats):null;
+ $('monitorLeftRating').textContent=values?values[0].toFixed(1):'—';$('monitorRightRating').textContent=values?values[1].toFixed(1):'—';
+ $('monitorRatingNote').textContent='نمرهٔ تخمینی ۰ تا ۱۰: کنترل توپ، فاصله و زاویهٔ دروازه، مانع‌های دفاعی و گل‌ها؛ '+(values?(replay?'بر اساس کل فایل بازپخش.':'بر اساس فریم‌های زندهٔ دریافت‌شده؛ موقت.'):'در انتظار دادهٔ کافی.');
+}
+
 function monitorDisplay(frame,paint=true){
  if(paint)drawPitch(frame);const match=selectedMatch(),serverReport=monitorSource==='server'?report:null;
  $('monitorLeft').textContent=frame?.names?.[0]||match?.left_team||serverReport?.config?.left?.name||'Left';
  $('monitorRight').textContent=frame?.names?.[1]||match?.right_team||serverReport?.config?.right?.name||'Right';
  $('monitorScore').textContent=frame?.score?frame.score.join(' : '):'— : —';
- $('monitorCycle').textContent=frame?'سایکل: '+frame.cycle+' — '+frame.mode:'سایکل: —';
+ $('monitorLeftGoals').textContent=frame?.score?.[0]??'—';$('monitorRightGoals').textContent=frame?.score?.[1]??'—';showTeamRatings();
+ $('monitorCycle').textContent=frame?'سایکل: '+frame.cycle:'سایکل: —';
 }
 function monitorReplayFrame(){
  const data=arenaMonitor.data;if(!data)return;
@@ -372,11 +426,11 @@ function startDirectLive(){
    trackServerGoal(item.round,item.game,item.frame);
    const previous=directLive.frames.get(key);
    if(previous&&stamp<previous.stamp)continue;
-   const samples=previous?.samples||[];
+   const samples=previous?.samples||[],ratingStats=previous?.ratingStats||newRatingStats();addRatingFrame(ratingStats,item.frame);
    if(samples.length&&samples[samples.length-1].stamp===stamp)samples[samples.length-1]={stamp,frame:item.frame};
    else samples.push({stamp,frame:item.frame});
    while(samples.length>40||samples.length>2&&samples[0].stamp<stamp-2000)samples.shift();
-   directLive.frames.set(key,{frame:item.frame,received:now,stamp,samples});
+   directLive.frames.set(key,{frame:item.frame,received:now,stamp,samples,ratingStats});
    if(directLive.frames.size>4)directLive.frames.delete(directLive.frames.keys().next().value);
   }
   followNextGame(frames[frames.length-1].round+'/'+frames[frames.length-1].game);

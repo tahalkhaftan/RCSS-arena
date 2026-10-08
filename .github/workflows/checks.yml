@@ -14,6 +14,7 @@ jobs:
       - run: python3 -m unittest discover -s tests -v
       - run: node tests/ui_polling.cjs
       - run: node tests/ui_monitor.cjs
+      - run: node tests/ui_ratings.cjs
       - run: node tests/ui_auto_next.cjs
       - run: node tests/ui_smooth_live.cjs
       - run: node tests/ui_local_rcg.cjs
