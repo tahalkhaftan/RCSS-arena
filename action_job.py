@@ -8,13 +8,20 @@ from replay import asset_name
 from live import LivePublisher
 
 class RemoteCancel:
-    def __init__(self,gh,ident):self.gh=gh;self.ident=ident;self.next=0;self.value=False
+    def __init__(self,gh,ident):self.gh=gh;self.ident=ident;self.next=0;self.value=False;self.lock=threading.Lock();self.polling=False
     def is_set(self):
-        if time.monotonic()>self.next:
-            self.next=time.monotonic()+30
-            try:self.value='cancel.json' in self.gh.assets(self.ident)
-            except Exception:pass
-        return self.value
+        with self.lock:
+            if not self.polling and time.monotonic()>self.next:
+                self.next=time.monotonic()+30;self.polling=True
+                threading.Thread(target=self.poll,daemon=True).start()
+            return self.value
+    def poll(self):
+        try:
+            value='cancel.json' in self.gh.assets(self.ident)
+            with self.lock:self.value=self.value or value
+        except Exception:pass
+        finally:
+            with self.lock:self.polling=False
 
 def main():
     gh=storage_client();gh.require_private();ident=int(os.environ['RELEASE_ID']);rel=gh.release(ident)

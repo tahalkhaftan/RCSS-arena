@@ -21,6 +21,17 @@ const fs=require('fs'),assert=require('node:assert/strict');
  await page.locator('#recent').click();
  await page.waitForFunction(()=>document.getElementById('monitorScore').textContent==='3 : 2');
  await page.waitForFunction(()=>document.getElementById('monitorBadge').textContent==='پخش مستقیم');
+ await page.evaluate(()=>{
+  const original=drawPitch;window.observedMotion=[];window.restorePitch=()=>{drawPitch=original;};
+  drawPitch=frame=>{if(frame?.ball)window.observedMotion.push(frame.ball[0]);original(frame);};
+  const now=Date.now()/1000,frame={cycle:4000,mode:'3',names:['Blue','Orange'],score:[3,2],ball:[0,0],players:[['l',1,-30,0,0,false]]};
+  directLive.frames.delete('1/2');
+  directLive.source.onmessage({data:JSON.stringify({frames:[{round:1,game:2,captured_at:now-.4,frame},{round:1,game:2,captured_at:now,frame:{...frame,cycle:4004,ball:[10,0],players:[['l',1,-26,0,0,false]]}}]})});
+ });
+ await page.waitForFunction(()=>window.observedMotion.filter(x=>x>0&&x<10).length>=3);
+ assert.ok(await page.evaluate(()=>new Set(window.observedMotion.filter(x=>x>0&&x<10)).size>=3),'Browser must draw intermediate positions between received frames');
+ await page.evaluate(()=>window.restorePitch());
+
  assert.equal(await page.locator('#monitorMatch option').count(),2);
  assert.equal(JSON.parse(await page.locator('#json').textContent()).progress.frame,undefined);
  await page.locator('.personalization summary').click();await page.locator('#themeLight').click();

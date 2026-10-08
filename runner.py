@@ -6,6 +6,7 @@ import shutil
 import socket
 import subprocess
 import time
+import threading
 from pathlib import Path
 from analysis import analyze, summary, sexpr
 from replay import show_frame,encode_replay
@@ -16,6 +17,26 @@ def results_only(value):
         return {k:results_only(v) for k,v in value.items() if k not in ('frame','frames','players','ball')}
     if isinstance(value,list):return [results_only(v) for v in value]
     return value
+
+class LatestProgress:
+    """Publish only the newest progress snapshot away from the UDP reader."""
+    def __init__(self,callback):
+        self.callback=callback;self.condition=threading.Condition();self.pending=None;self.stopping=False
+        self.thread=threading.Thread(target=self.run,daemon=True);self.thread.start()
+    def submit(self,snapshot):
+        with self.condition:self.pending=snapshot;self.condition.notify()
+    def run(self):
+        while True:
+            with self.condition:
+                self.condition.wait_for(lambda:self.pending is not None or self.stopping)
+                if self.pending is None and self.stopping:return
+                snapshot=self.pending;self.pending=None
+            try:self.callback(snapshot)
+            except Exception:print('Progress publication delayed; live frames and match logs continue.',flush=True)
+    def close(self):
+        with self.condition:self.stopping=True;self.condition.notify()
+        # Finish before run_job writes final results, avoiding concurrent report writes.
+        self.thread.join()
 
 class Cancelled(Exception): pass
 
@@ -88,6 +109,8 @@ def run_match(config,teams,folder,cancel,progress=None,live=None):
           'team_l_start':'""','team_r_start':'""','port':6000,'coach_port':6001,'olcoach_port':6002}
     monitor=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); monitor.settimeout(.3)
     deadline=time.monotonic()+int(os.environ.get('MATCH_TIMEOUT_SECONDS','1800'))
+    progress_writer=LatestProgress(progress) if progress else None
+    if progress_writer:progress=progress_writer.submit
     try:
         def launch_log(name):
             f=open(folder/name,'wb'); files.append(f); return f
@@ -163,6 +186,7 @@ def run_match(config,teams,folder,cancel,progress=None,live=None):
         monitor.close()
         for p in reversed(procs): kill_group(p)
         for f in files: f.close()
+        if progress_writer:progress_writer.close()
 
 def run_job(job,write):
     import zipfile

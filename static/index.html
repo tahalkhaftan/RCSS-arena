@@ -232,7 +232,7 @@ const directLive={source:null,test:null,frames:new Map(),received:0,timers:[],wa
 let monitorSource='server',localReplayIndex=0,localResults=null,localReplay=null,localReplayName='',localRead=0;
 const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
-function monitorClear(){clearGoalNotice();monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
+function monitorClear(){stopSmoothLive();clearGoalNotice();monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
 function selectedMatch(){if(monitorSource==='file')return undefined;return (report?.matches||[]).find(m=>m.round+'/'+m.game===arenaMonitor.key);}
 function drawPitch(frame){
  const canvas=$('pitch');if(!canvas.getContext)return;const c=canvas.getContext('2d');if(!c)return;
@@ -255,8 +255,8 @@ function drawPitch(frame){
  }
  if(frame.ball?.every(Number.isFinite)){c.fillStyle='#fff';c.strokeStyle='#071a13';c.lineWidth=2;c.beginPath();c.arc(X(frame.ball[0]),Y(frame.ball[1]),5,0,Math.PI*2);c.fill();c.stroke();}
 }
-function monitorDisplay(frame){
- drawPitch(frame);const match=selectedMatch(),serverReport=monitorSource==='server'?report:null;
+function monitorDisplay(frame,paint=true){
+ if(paint)drawPitch(frame);const match=selectedMatch(),serverReport=monitorSource==='server'?report:null;
  $('monitorLeft').textContent=frame?.names?.[0]||match?.left_team||serverReport?.config?.left?.name||'Left';
  $('monitorRight').textContent=frame?.names?.[1]||match?.right_team||serverReport?.config?.right?.name||'Right';
  $('monitorScore').textContent=frame?.score?frame.score.join(' : '):'— : —';
@@ -293,7 +293,54 @@ async function loadMonitorReplay(){
  }catch(error){if(token===arenaMonitor.request){$('monitorInfo').textContent=error.message;$('monitorBadge').textContent='بازپخش آماده نیست';}}
  finally{if(token===arenaMonitor.request){arenaMonitor.loading=false;$('monitorLoad').disabled=false;}}
 }
+
+const smoothLive={raf:null,offset:null,delay:250};
+function blendLiveFrames(a,b,t){
+ if(!a||!b)return b||a;
+ t=Math.max(0,Math.min(1,t));
+ // Goals, restarts and large position jumps must not slide across the pitch.
+ if(a.mode!==b.mode||a.score?.join(':')!==b.score?.join(':'))return t<1?a:b;
+ const lerp=(x,y)=>x+(y-x)*t;
+ const old=new Map((a.players||[]).map(p=>[p[0]+':'+p[1],p]));
+ const players=(b.players||[]).map(p=>{
+  const q=old.get(p[0]+':'+p[1]);if(!q||Math.hypot(p[2]-q[2],p[3]-q[3])>20)return p;
+  const turn=((p[4]-q[4]+540)%360)-180;
+  return [p[0],p[1],lerp(q[2],p[2]),lerp(q[3],p[3]),q[4]+turn*t,p[5]];
+ });
+ const ball=a.ball&&b.ball&&Math.hypot(b.ball[0]-a.ball[0],b.ball[1]-a.ball[1])<25?[lerp(a.ball[0],b.ball[0]),lerp(a.ball[1],b.ball[1])]:b.ball;
+ return {...b,cycle:Math.round(lerp(a.cycle,b.cycle)),players,ball};
+}
+function smoothFrame(samples,target){
+ if(!samples?.length)return null;
+ if(target<=samples[0].stamp)return samples[0].frame;
+ for(let i=1;i<samples.length;i++){
+  const a=samples[i-1],b=samples[i];if(target>b.stamp)continue;
+  const gap=b.stamp-a.stamp;
+  if(gap<=0||gap>500)return a.frame; // Hold rather than invent motion through an outage.
+  return blendLiveFrames(a.frame,b.frame,(target-a.stamp)/gap);
+ }
+ return samples[samples.length-1].frame;
+}
+function stopSmoothLive(){
+ if(smoothLive.raf!==null&&typeof cancelAnimationFrame==='function')cancelAnimationFrame(smoothLive.raf);
+ smoothLive.raf=null;
+}
+function startSmoothLive(){
+ if(typeof requestAnimationFrame!=='function'||smoothLive.raf!==null||monitorSource!=='server'||$('monitorMode').value!=='live')return;
+ const tick=()=>{
+  smoothLive.raf=null;
+  if(monitorSource!=='server'||$('monitorMode').value!=='live')return;
+  const entry=directLive.frames.get(arenaMonitor.key);
+  if(!entry||Date.now()-entry.received>=3500){monitorLive();return;}
+  const frame=smoothFrame(entry.samples,Date.now()-(smoothLive.offset||0)-smoothLive.delay);
+  if(frame)drawPitch(frame);
+  smoothLive.raf=requestAnimationFrame(tick);
+ };
+ smoothLive.raf=requestAnimationFrame(tick);
+}
+
 function stopDirectLive(){
+ stopSmoothLive();smoothLive.offset=null;
  directLive.source?.close();directLive.source=null;directLive.test=null;directLive.frames.clear();directLive.received=0;
  for(const t of directLive.timers)clearTimeout(t);directLive.timers=[];
  if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);directLive.watchdog=null;
@@ -308,20 +355,23 @@ function startDirectLive(){
   if(directLive.source!==source)return;
   let batch;try{batch=JSON.parse(event.data).frames;}catch{return;}
   if(!Array.isArray(batch)||!batch.length)return;
-  for(const t of directLive.timers)clearTimeout(t);directLive.timers=[];
-  // Preserve a short batch's order, but never build up seconds of stale frames.
-  const now=Date.now(),frames=batch.filter(f=>!f.captured_at||now-f.captured_at*1000<5000).slice(-5);if(!frames.length)return;directLive.received=now;
-  frames.forEach((item,index)=>{
-   if(!item.frame||!Array.isArray(item.frame.players))return;
-   const show=()=>{
-    if(directLive.source!==source)return;
-    trackServerGoal(item.round,item.game,item.frame);
-    directLive.frames.set(item.round+'/'+item.game,{frame:item.frame,received:Date.now()});
-    if(directLive.frames.size>4)directLive.frames.delete(directLive.frames.keys().next().value);
-    if($('monitorMode').value==='live'&&arenaMonitor.key===item.round+'/'+item.game)monitorLive();
-   };
-   if(index===0)show();else directLive.timers.push(setTimeout(show,index*80));
-  });
+  const now=Date.now(),frames=batch.filter(f=>!f.captured_at||Math.abs(now-f.captured_at*1000)<5000).slice(-12);if(!frames.length)return;directLive.received=now;
+  const captured=frames.map(f=>Number(f.captured_at)*1000).filter(Number.isFinite);
+  if(captured.length){const observed=now-Math.max(...captured);smoothLive.offset=smoothLive.offset===null?observed:Math.min(smoothLive.offset,observed);}
+  for(const item of frames){
+   if(!item.frame||!Array.isArray(item.frame.players))continue;
+   const key=item.round+'/'+item.game,stamp=Number.isFinite(Number(item.captured_at))?Number(item.captured_at)*1000:now-(smoothLive.offset||0);
+   trackServerGoal(item.round,item.game,item.frame);
+   const previous=directLive.frames.get(key);
+   if(previous&&stamp<previous.stamp)continue;
+   const samples=previous?.samples||[];
+   if(samples.length&&samples[samples.length-1].stamp===stamp)samples[samples.length-1]={stamp,frame:item.frame};
+   else samples.push({stamp,frame:item.frame});
+   while(samples.length>40||samples.length>2&&samples[0].stamp<stamp-2000)samples.shift();
+   directLive.frames.set(key,{frame:item.frame,received:now,stamp,samples});
+   if(directLive.frames.size>4)directLive.frames.delete(directLive.frames.keys().next().value);
+  }
+  if(monitorSource==='server'&&$('monitorMode').value==='live')monitorLive();
   if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);
   directLive.watchdog=setTimeout(()=>{if($('monitorMode').value==='live')monitorLive();},4000);
  };
@@ -331,9 +381,10 @@ function monitorLive(){
  if(monitorSource==='file')return;
  const fresh=directLive.frames.get(arenaMonitor.key);
  if(fresh&&Date.now()-fresh.received<3500){
-  monitorDisplay(fresh.frame);$('monitorBadge').textContent='پخش مستقیم';
+  monitorDisplay(fresh.frame,typeof requestAnimationFrame!=='function');startSmoothLive();$('monitorBadge').textContent='پخش مستقیم';
   $('monitorInfo').textContent='دریافت پیوستهٔ موقعیت واقعی توپ و بازیکن‌ها — سایکل '+fresh.frame.cycle;return;
  }
+ stopSmoothLive();
  const live=report?.progress;
  if(live&&live.round+'/'+live.game===arenaMonitor.key&&live.frame){
   monitorDisplay({...live.frame,score:[live.left_score??live.frame.score[0],live.right_score??live.frame.score[1]],names:live.server_team_names||live.frame.names});
