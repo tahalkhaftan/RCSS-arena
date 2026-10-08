@@ -50,11 +50,12 @@
 <section class="card monitor" id="matchMonitor" aria-label="مانیتور مسابقه">
 <div class="result-head"><div><div class="team-name-row"><span class="team-picker"><select id="monitorSource" aria-label="منبع مانیتور" title="منبع مانیتور"><option value="server">اتصال به سرور</option><option value="file">خواندن فایل RCG</option></select><span aria-hidden="true">▾</span></span><h2>مانیتور مسابقه</h2></div><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها ممکن است با تأخیر همراه باشد؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
 <div id="monitorFilePanel" class="hidden"><label class="upload"><strong>انتخاب فایل RCG برای بازپخش</strong><small>فایل متنی ULG4، ULG5 یا ULG6؛ فایل فقط در مرورگر خوانده می‌شود و به سرور ارسال نمی‌شود.</small><input id="monitorFile" type="file" accept=".rcg"></label></div>
-<div id="monitorServerPanel"><label class="foot" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer"><input type="checkbox" id="monitorAutoNext" style="width:auto;margin:0;accent-color:var(--green)">رفتن خودکار به بازی بعدی</label><div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div></div>
+<div id="monitorServerPanel"><div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><div><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><label class="foot" style="display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:0;cursor:pointer"><input type="checkbox" id="monitorAutoNext" style="width:auto;margin:0;accent-color:var(--green)">رفتن خودکار به بازی بعدی</label></div><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div></div>
 <div class="monitor-score" dir="ltr"><span id="monitorLeft">Left</span><strong id="monitorScore">— : —</strong><span id="monitorRight">Right</span></div>
 <canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
 <div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label><span id="monitorCycle">سایکل: —</span></div>
 <input type="range" id="monitorSeek" min="0" max="0" value="0" disabled aria-label="جابه‌جایی در بازپخش">
+<p class="foot">رنگ استامینا: نزدیک ۱۰۰۰ و بالاتر، رنگ روشن تیم؛ نزدیک صفر، رنگ مایل به سفید با حفظ ته‌رنگ تیم.</p>
 <p class="foot" id="monitorConcurrent" aria-live="polite"></p>
 <p class="foot" id="monitorInfo" aria-live="polite">پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.</p>
 </section>
@@ -234,6 +235,12 @@ const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:fals
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
 function monitorClear(){stopSmoothLive();clearGoalNotice();monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
 function selectedMatch(){if(monitorSource==='file')return undefined;return (report?.matches||[]).find(m=>m.round+'/'+m.game===arenaMonitor.key);}
+function playerStaminaColor(side,stamina){
+ const base=side==='l'?[104,183,255]:[255,179,92];
+ if(!Number.isFinite(stamina))return 'rgb('+base.join(',')+')';
+ const energy=Math.max(0,Math.min(1,stamina/1000)),white=.6*(1-energy);
+ return 'rgb('+base.map(c=>Math.round(c+(255-c)*white)).join(',')+')';
+}
 function drawPitch(frame){
  const canvas=$('pitch');if(!canvas.getContext)return;const c=canvas.getContext('2d');if(!c)return;
  const W=canvas.width,H=canvas.height,scale=Math.min(W/115,H/78),cx=W/2,cy=H/2;
@@ -247,8 +254,8 @@ function drawPitch(frame){
  for(const side of [-1,1]){box(side<0?-52.5:36,-20.16,16.5,40.32);box(side<0?-52.5:47,-9.16,5.5,18.32);box(side<0?-54.9:52.5,-7.01,2.4,14.02);circle(side*41.5,0,.18);}
  if(!frame){c.fillStyle='#fff';c.textAlign='center';c.font='24px sans-serif';c.fillText('منتظر دادهٔ واقعی مسابقه',cx,cy);return;}
  for(const p of frame.players||[]){
-  const [side,n,x,y,body,goalie]=p;if(!Number.isFinite(x)||!Number.isFinite(y))continue;
-  c.save();c.translate(X(x),Y(y));c.fillStyle=side==='l'?'#68b7ff':'#ffb35c';c.strokeStyle=goalie?'#fff247':'#0b1721';c.lineWidth=goalie?3:1.5;
+  const [side,n,x,y,body,goalie,stamina]=p;if(!Number.isFinite(x)||!Number.isFinite(y))continue;
+  c.save();c.translate(X(x),Y(y));c.fillStyle=playerStaminaColor(side,stamina);c.strokeStyle=goalie?'#fff247':side==='l'?'#2475be':'#ae5b16';c.lineWidth=goalie?3:1.5;
   c.beginPath();c.arc(0,0,9,0,Math.PI*2);c.fill();c.stroke();
   const rad=(body||0)*Math.PI/180;c.beginPath();c.moveTo(Math.cos(rad)*10,Math.sin(rad)*10);c.lineTo(Math.cos(rad)*16,Math.sin(rad)*16);c.stroke();
   c.fillStyle='#081323';c.font='bold 11px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(String(n),0,0);c.restore();
@@ -305,7 +312,8 @@ function blendLiveFrames(a,b,t){
  const players=(b.players||[]).map(p=>{
   const q=old.get(p[0]+':'+p[1]);if(!q||Math.hypot(p[2]-q[2],p[3]-q[3])>20)return p;
   const turn=((p[4]-q[4]+540)%360)-180;
-  return [p[0],p[1],lerp(q[2],p[2]),lerp(q[3],p[3]),q[4]+turn*t,p[5]];
+  const out=[p[0],p[1],lerp(q[2],p[2]),lerp(q[3],p[3]),q[4]+turn*t,p[5]];
+  if(p.length>6)out.push(Number.isFinite(q[6])&&Number.isFinite(p[6])?lerp(q[6],p[6]):p[6]);return out;
  });
  const ball=a.ball&&b.ball&&Math.hypot(b.ball[0]-a.ball[0],b.ball[1]-a.ball[1])<25?[lerp(a.ball[0],b.ball[0]),lerp(a.ball[1],b.ball[1])]:b.ball;
  return {...b,cycle:Math.round(lerp(a.cycle,b.cycle)),players,ball};
@@ -467,7 +475,11 @@ async function parseLocalRCG(text,current=()=>true){
      if(item[0][0]==='b')frame.ball=[num(item[1]),num(item[2])];
      else if(['l','r'].includes(item[0][0])){
       const state=parseInt(item[2],16);
-      if(state&&!(state&(0x100|0x200|0x80000)))frame.players.push([item[0][0],num(item[0][1]),num(item[3]),num(item[4]),item.length>7?num(item[7]):0,!!(state&8)]);
+      if(state&&!(state&(0x100|0x200|0x80000))){
+       const player=[item[0][0],num(item[0][1]),num(item[3]),num(item[4]),item.length>7?num(item[7]):0,!!(state&8)];
+       const stamina=item.find(v=>Array.isArray(v)&&v[0]==='s');if(stamina?.length>1)player.push(num(stamina[1]));
+       frame.players.push(player);
+      }
      }
     }
    }

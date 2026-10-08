@@ -8,6 +8,11 @@ vm.createContext(ctx);vm.runInContext(fs.readFileSync('static/index.html','utf8'
 const rcg='ULG5\n(server_param (simulator_step 100))\n(team 0 Blue Orange 0 0)\n(show 1 (pm 3) ((b) 1 2 0 0) ((l 1) 0 9 -40 0 0 0 90) ((r 9) 0 1 20 10 0 0 0))\n(team 6000 Blue Orange 2 1)\n(show 6000 ((b) 0 0 0 0) ((l 1) 0 9 -40 0 0 0 90))\n(playmode 6000 time_over)\n';
 (async()=>{
  for(const header of ['ULG4','ULG5','ULG6','\ufeffULG6']){const data=await ctx.parseLocalRCG(rcg.replace('ULG5',header));assert.equal(data.frames[0].players.length,2);assert.equal(data.final_score.join(':'),'2:1');}
+
+ const staminaData=await ctx.parseLocalRCG('ULG6\n(show 1 ((b) 0 0 0 0) ((l 1) 0 9 -40 0 0 0 90 (s 0 1 1)) ((r 2) 0 1 10 0 0 0 0 (s 1000 1 1)))\n');
+ assert.equal(staminaData.frames[0].players[0][6],0);assert.equal(staminaData.frames[0].players[1][6],1000);
+ assert.equal(ctx.playerStaminaColor('l',0),'rgb(195,226,255)');assert.equal(ctx.playerStaminaColor('r',0),'rgb(255,225,190)');
+ assert.equal(ctx.playerStaminaColor('l',1000),'rgb(104,183,255)');assert.equal(ctx.playerStaminaColor('r',undefined),'rgb(255,179,92)');
  const parsed=await ctx.parseLocalRCG(rcg.replace('ULG5','ULG6'));assert.equal(parsed.frames.length,2);assert.equal(parsed.frames[0].players.length,2);assert.equal(parsed.frames[0].players[0][5],true);assert.equal(parsed.final_score.join(':'),'2:1');
  await assert.rejects(ctx.parseLocalRCG('ULG3\n'),/ULG4/);
  await assert.rejects(ctx.parseLocalRCG('ULG5\n'),/داده/);

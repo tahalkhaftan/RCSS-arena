@@ -25,7 +25,10 @@ def show_frame(record, previous=None):
             elif len(item[0])==2 and item[0][0] in ('l','r'):
                 state=int(str(item[2]),16)
                 if state and not state & (0x100|0x200|0x80000):
-                    frame['players'].append([item[0][0],int(item[0][1]),number(item[3]),number(item[4]),number(item[7]) if len(item)>7 else 0,bool(state & 8)])
+                    player=[item[0][0],int(item[0][1]),number(item[3]),number(item[4]),number(item[7]) if len(item)>7 else 0,bool(state & 8)]
+                    stamina=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='s'),None)
+                    if stamina is not None:player.append(number(stamina[1]))
+                    frame['players'].append(player)
     return frame
 
 
