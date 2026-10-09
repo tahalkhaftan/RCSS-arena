@@ -38,7 +38,12 @@ console.log('PASS: performance passes, deep passes, turnovers, dribbles, shots, 
 
 assert.equal(context.carrySuccessRate(3,1),75);assert.equal(context.carrySuccessRate(0,2),0);assert.equal(context.carrySuccessRate(0,0),null);
 assert.deepEqual(Array.from(context.savedPerformanceValues({left:{dribbles:{successful:3,failed:1}},right:{ball_carries:{successful:1,failed:1,success_rate_percent:50}}}).carrySuccess),[75,50]);
-context.carryFixture={left:{ball_carries:{successful:3,failed:1,success_rate_percent:75}},right:{ball_carries:{successful:0,failed:0,success_rate_percent:null}},status:'complete'};
-vm.runInContext("monitorSource='server';$('monitorMode').value='live';arenaMonitor.key='1/1';report={matches:[{round:1,game:1,status:'completed',performance:carryFixture}]};monitorDisplay(null)",context);
-assert.equal(el('performance_carrySuccess_0').textContent,'75.0٪');assert.equal(el('performance_carrySuccess_1').textContent,'—');
-assert.ok(source.includes('حرکت با توپ موفق'));assert.ok(!source.includes('>دریبل موفق'));assert.ok(!source.includes('id="performance_dribbleFail_0"'));
+assert.ok(!source.includes('id="performance_carrySuccess_0"'));
+assert.ok(!source.includes('id="performance_deepOK_0"'));
+assert.ok(!source.includes('id="performance_deepFail_0"'));
+const deepCompleted=run([frame(1,0,0,'l'),frame(5,10,0,'l',3)]);
+const deepFailed=run([frame(1,0,0,'l'),frame(5,10,0,'r')]);
+assert.equal(context.exportPerformance(deepCompleted).left.passes.total,1,'Deep passes count once in overall passes');
+assert.equal(context.exportPerformance(deepFailed).left.passes.failed,1,'Failed deep passes count once in failed passes');
+assert.ok(source.indexOf('id="performance_passes_0"')<source.indexOf('id="performance_passFail_0"'));
+assert.ok(source.indexOf('id="performance_passFail_0"')<source.indexOf('id="performance_passOK_0"'));
