@@ -26,6 +26,10 @@ def show_frame(record, previous=None):
                 if len(item)>4:frame['ball_velocity']=[number(item[3]),number(item[4])]
             elif len(item[0])==2 and item[0][0] in ('l','r'):
                 state=int(str(item[2]),16)
+                ident=f'{item[0][0]}:{int(item[0][1])}'
+                if state & 2 and not state & 4:frame.setdefault('kickers',[]).append(ident)
+                if state & 4:frame.setdefault('kick_faults',[]).append(ident)
+                if state & 16 and state & 8 and not state & 32:frame.setdefault('catchers',[]).append(ident)
                 if state and not state & (0x100|0x200|0x80000):
                     player=[item[0][0],int(item[0][1]),number(item[3]),number(item[4]),number(item[7]) if len(item)>7 else 0,bool(state & 8)]
                     stamina=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='s'),None)

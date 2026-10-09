@@ -14,3 +14,10 @@ class PerformanceMetadata(unittest.TestCase):
         frame=show_frame(sexpr('(show 1 ((b) 1 2) ((r 2) 0 0x1 1 2 0 0 0 0))'))
         self.assertNotIn('kicks',frame)
         self.assertNotIn('ball_velocity',frame)
+
+    def test_successful_kick_and_goalkeeper_catch_flags(self):
+        frame=show_frame(sexpr('(show 3 ((b) 1 2 0 0) ((l 2) 0 0x3 1 2 0 0 0 0) ((r 1) 0 0x19 48 0 0 0 0 0))'))
+        self.assertEqual(frame['kickers'],['l:2'])
+        self.assertEqual(frame['catchers'],['r:1'])
+        fault=show_frame(sexpr('(show 4 ((b) 1 2 0 0) ((r 1) 0 0x39 48 0 0 0 0 0))'))
+        self.assertNotIn('catchers',fault)

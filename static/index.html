@@ -44,6 +44,7 @@
 @media(max-width:700px){.monitor-score,.monitor-ratings{grid-template-columns:minmax(0,1fr) 95px minmax(0,1fr);gap:6px}.monitor-score .score-team{gap:6px}.monitor-score .score-team span{font-size:12px}.monitor-score .score-team strong{font-size:24px}.cycle-box{font-size:11px}.team-rating{padding:6px;gap:4px;flex-wrap:wrap}.team-rating span{font-size:10px}.team-rating strong{font-size:19px}}
 .live-timeline{position:relative;direction:ltr;margin-top:12px}.live-timeline input{position:relative;z-index:2;background:transparent;display:block;margin:0}.live-edge{position:absolute;right:0;top:50%;height:8px;width:8px;border-radius:50%;background:var(--green);opacity:.3;pointer-events:none;transform:translateY(-50%)}.live-trail{position:absolute;right:0;top:50%;height:3px;background:var(--green);opacity:.14;pointer-events:none;transform:translateY(-50%);width:0}.live-button{color:var(--green)}.live-button[data-following="true"]{background:var(--green);color:#10251e}
 .performance{margin-top:24px}.performance-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,1.25fr) minmax(0,1fr);gap:10px;align-items:center;direction:ltr}.performance-name{font-weight:bold;font-size:18px;overflow-wrap:anywhere;padding:10px 4px;text-align:center}.performance-left{color:var(--blue)}.performance-right{color:#d98935}.performance-label{direction:rtl;text-align:center;color:var(--muted);font-size:13px}.performance-value{border:1px solid var(--line);background:var(--bg);border-radius:12px;text-align:center;font:700 24px Arial;padding:13px 6px}.performance-value.left{color:var(--blue);border-left:3px solid var(--blue)}.performance-value.right{color:#d98935;border-right:3px solid #d98935}@media(max-width:500px){.performance-grid{gap:8px;grid-template-columns:minmax(0,1fr) minmax(95px,1.3fr) minmax(0,1fr)}.performance-name{font-size:14px}.performance-label{font-size:11px}.performance-value{font-size:21px}}
+.performance-heading,.match-stat-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,1.5fr) minmax(0,1fr);align-items:center;gap:10px;direction:ltr}.performance-heading{padding-bottom:15px;border-bottom:1px solid var(--line)}.match-stat-row{padding:12px 4px;border-bottom:1px solid var(--line)}.match-stat-label{text-align:center;font-size:13px;color:var(--muted)}.match-stat-label small{color:var(--muted);font-size:12px}.stat-number{text-align:center;font:700 22px Arial}.stat-number-left{color:var(--blue)}.stat-number-right{color:#d98935}.match-stat-bar{grid-column:1/-1;display:flex;height:5px;border-radius:10px;overflow:hidden;direction:ltr;margin:0 8px}.match-stat-bar span:first-child{width:var(--left-share,50%);background:var(--blue)}.match-stat-bar span:last-child{flex:1;background:#d98935}.match-stat-bar[hidden]{display:none}.performance-details{margin-top:18px}.performance-details summary{cursor:pointer;color:var(--muted);font-size:13px}.performance-name{margin:0}@media(max-width:500px){.performance-heading,.match-stat-row{grid-template-columns:minmax(0,1fr) minmax(125px,1.5fr) minmax(0,1fr);gap:6px}.stat-number{font-size:19px}.match-stat-label{font-size:12px}}
 </style>
 </head>
 <body><div class="goal-toast" id="goalToast" role="status" aria-live="polite" aria-atomic="true"><strong id="goalToastTitle"></strong><span id="goalToastScore" dir="ltr"></span></div><main>
@@ -72,7 +73,7 @@
 <p class="foot" id="monitorInfo" aria-live="polite">پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.</p>
 </section>
 
-<section class="card performance" aria-label="عملکرد تیم‌ها"><div class="result-head"><h2>عملکرد تیم‌ها</h2><span class="badge" id="performanceStatus">منتظر دادهٔ بازی</span></div><div class="performance-grid"><div class="performance-name performance-left" id="performanceLeft">—</div><div></div><div class="performance-name performance-right" id="performanceRight">—</div><div class="performance-value left" id="performance_passOK_0">—</div><div class="performance-label">پاس موفق</div><div class="performance-value right" id="performance_passOK_1">—</div><div class="performance-value left" id="performance_passFail_0">—</div><div class="performance-label">پاس ناموفق</div><div class="performance-value right" id="performance_passFail_1">—</div><div class="performance-value left" id="performance_deepOK_0">—</div><div class="performance-label">پاس عمقی موفق</div><div class="performance-value right" id="performance_deepOK_1">—</div><div class="performance-value left" id="performance_deepFail_0">—</div><div class="performance-label">پاس عمقی ناموفق</div><div class="performance-value right" id="performance_deepFail_1">—</div><div class="performance-value left" id="performance_shotOn_0">—</div><div class="performance-label">شوت در چارچوب</div><div class="performance-value right" id="performance_shotOn_1">—</div><div class="performance-value left" id="performance_shotOff_0">—</div><div class="performance-label">شوت خارج از چارچوب</div><div class="performance-value right" id="performance_shotOff_1">—</div><div class="performance-value left" id="performance_dribbleOK_0">—</div><div class="performance-label">دریبل موفق</div><div class="performance-value right" id="performance_dribbleOK_1">—</div><div class="performance-value left" id="performance_dribbleFail_0">—</div><div class="performance-label">دریبل ناموفق</div><div class="performance-value right" id="performance_dribbleFail_1">—</div></div></section>
+<section class="card performance" aria-label="عملکرد تیم‌ها"><div class="result-head"><h2>عملکرد تیم‌ها</h2><span class="badge" id="performanceStatus">منتظر دادهٔ بازی</span></div><div class="performance-heading" dir="ltr"><div class="performance-name performance-left" id="performanceLeft">—</div><span class="match-stat-label">آمار بازی</span><div class="performance-name performance-right" id="performanceRight">—</div></div><div class="match-stats"><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_goals_0">—</strong><span class="match-stat-label" dir="rtl">گل </span><strong class="stat-number stat-number-right" id="performance_goals_1">—</strong><div class="match-stat-bar" id="performance_bar_goals" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_possession_0">—</strong><span class="match-stat-label" dir="rtl">مالکیت توپ <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_possession_1">—</strong><div class="match-stat-bar" id="performance_bar_possession" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shots_0">—</strong><span class="match-stat-label" dir="rtl">شوت <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shots_1">—</strong><div class="match-stat-bar" id="performance_bar_shots" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shotOn_0">—</strong><span class="match-stat-label" dir="rtl">شوت در چارچوب <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shotOn_1">—</strong><div class="match-stat-bar" id="performance_bar_shotOn" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shotOff_0">—</strong><span class="match-stat-label" dir="rtl">شوت خارج از چارچوب <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shotOff_1">—</strong><div class="match-stat-bar" id="performance_bar_shotOff" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shotBlocked_0">—</strong><span class="match-stat-label" dir="rtl">شوت مسدودشده <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shotBlocked_1">—</strong><div class="match-stat-bar" id="performance_bar_shotBlocked" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_saves_0">—</strong><span class="match-stat-label" dir="rtl">مهار ثبت‌شدهٔ شوت <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_saves_1">—</strong><div class="match-stat-bar" id="performance_bar_saves" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_passes_0">—</strong><span class="match-stat-label" dir="rtl">پاس <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_passes_1">—</strong><div class="match-stat-bar" id="performance_bar_passes" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_passOK_0">—</strong><span class="match-stat-label" dir="rtl">پاس صحیح <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_passOK_1">—</strong><div class="match-stat-bar" id="performance_bar_passOK" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_accuracy_0">—</strong><span class="match-stat-label" dir="rtl">دقت پاس <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_accuracy_1">—</strong><div class="match-stat-bar" id="performance_bar_accuracy" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_corners_0">—</strong><span class="match-stat-label" dir="rtl">کرنر </span><strong class="stat-number stat-number-right" id="performance_corners_1">—</strong><div class="match-stat-bar" id="performance_bar_corners" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_offsides_0">—</strong><span class="match-stat-label" dir="rtl">آفساید </span><strong class="stat-number stat-number-right" id="performance_offsides_1">—</strong><div class="match-stat-bar" id="performance_bar_offsides" hidden><span></span><span></span></div></div></div><details class="performance-details"><summary>جزئیات پاس و دریبل</summary><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_passFail_0">—</strong><span class="match-stat-label" dir="rtl">پاس ناموفق <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_passFail_1">—</strong><div class="match-stat-bar" id="performance_bar_passFail" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_deepOK_0">—</strong><span class="match-stat-label" dir="rtl">پاس عمقی موفق <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_deepOK_1">—</strong><div class="match-stat-bar" id="performance_bar_deepOK" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_deepFail_0">—</strong><span class="match-stat-label" dir="rtl">پاس عمقی ناموفق <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_deepFail_1">—</strong><div class="match-stat-bar" id="performance_bar_deepFail" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_dribbleOK_0">—</strong><span class="match-stat-label" dir="rtl">دریبل موفق <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_dribbleOK_1">—</strong><div class="match-stat-bar" id="performance_bar_dribbleOK" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_dribbleFail_0">—</strong><span class="match-stat-label" dir="rtl">دریبل ناموفق <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_dribbleFail_1">—</strong><div class="match-stat-bar" id="performance_bar_dribbleFail" hidden><span></span><span></span></div></div></details><p class="foot">≈ برآورد از رویدادهای تشخیص‌داده‌شده؛ آمار زنده ممکن است ناقص باشد. «—» یعنی دادهٔ کافی نداریم. مهار دروازه‌بان از تفاضل شوت و گل محاسبه نمی‌شود.</p></section>
 <section class="card results"><div class="result-head"><div><h2 id="resultsTitle">گزارش تست</h2><p id="reportNote">پس از شروع، آمار و JSON نتایج اینجا نمایش داده می‌شوند.</p></div><button class="btn primary" id="zip" disabled>دانلود ZIP لاگ‌ها</button></div><div class="stats"><div class="stat"><strong id="completed">0</strong><span>بازی کامل‌شده</span></div><div class="stat"><strong id="leftWins">0</strong><span>برد تیم چپ</span></div><div class="stat"><strong id="draws">0</strong><span>مساوی</span></div><div class="stat"><strong id="rightWins">0</strong><span>برد تیم راست</span></div><div class="stat"><strong id="leftGoals">0</strong><span>گل تیم چپ</span></div><div class="stat"><strong id="rightGoals">0</strong><span>گل تیم راست</span></div></div><div class="stats" style="margin-top:12px;grid-template-columns:repeat(4,1fr)"><div class="stat"><strong id="posLeft">—</strong><span>میانگین مالکیت چپ ٪</span></div><div class="stat"><strong id="posRight">—</strong><span>میانگین مالکیت راست ٪</span></div><div class="stat"><strong id="posFree">—</strong><span>میانگین توپ آزاد ٪</span></div><div class="stat"><strong id="posShared">—</strong><span>میانگین کنترل مشترک ٪</span></div></div><div class="json-head"><h2 dir="ltr">results.json</h2><div class="buttons"><button class="btn" id="copy" disabled>کپی JSON</button><button class="btn" id="download" disabled>دانلود JSON</button></div></div><pre id="json" tabindex="0" aria-label="JSON نتایج">{
   "status": "idle",
   "matches": []
@@ -277,46 +278,55 @@ function drawPitch(frame){
 }
 
 const performanceSnapshots=new WeakMap();
-const performanceKeys=['passOK','passFail','deepOK','deepFail','shotOn','shotOff','dribbleOK','dribbleFail'];
-function newPerformance(){return {counts:Object.fromEntries(performanceKeys.map(k=>[k,[0,0]])),last:null,holder:null,flight:null,carry:null,samples:0,gaps:0};}
+const performanceKeys=['passOK','passFail','deepOK','deepFail','shotOn','shotOff','shotBlocked','dribbleOK','dribbleFail','corners','offsides','saves'];
+function newPerformance(){return {counts:Object.fromEntries(performanceKeys.map(k=>[k,[0,0]])),last:null,holder:null,flight:null,carry:null,samples:0,gaps:0,control:[0,0],shotMetadata:false,mode:null};}
 function performanceOwner(frame){
  let best=[null,null],dist=[Infinity,Infinity];for(const p of frame.players||[]){if(!['l','r'].includes(p[0]))continue;const i=p[0]==='l'?0:1,d=Math.hypot(p[2]-frame.ball[0],p[3]-frame.ball[1]);if(d<dist[i]){dist[i]=d;best[i]=p;}}
  const i=dist[0]<=1.3&&dist[0]+.15<dist[1]?0:dist[1]<=1.3&&dist[1]+.15<dist[0]?1:-1;
  return i<0?null:{side:i,id:best[i][0]+':'+best[i][1],player:best[i]};
 }
 function performanceDirection(frame,side){const g=(frame.players||[]).find(p=>p[0]===(side?'r':'l')&&p[5]&&Math.abs(p[2])>20);return g?-Math.sign(g[2]):side?-1:1;}
+function performanceMode(mode){return ({'10':'corner_kick_l','11':'corner_kick_r','17':'offside_l','18':'offside_r','12':'goal_kick_l','13':'goal_kick_r','14':'goal_l','15':'goal_r','6':'kick_in_l','7':'kick_in_r'})[String(mode)]||String(mode);}
 function recordPerformance(stats,frame){
  if(!frame?.ball?.every(Number.isFinite))return;
- const previous=stats.last,active=['3','play_on'].includes(String(frame.mode));
- if(previous&&frame.cycle<=previous.cycle)return;
- const snapshot=()=>{performanceSnapshots.set(frame,{counts:Object.fromEntries(performanceKeys.map(k=>[k,[...stats.counts[k]]])),samples:stats.samples,gaps:stats.gaps});stats.last=frame;};
- if(previous&&frame.cycle-previous.cycle>5){stats.holder=null;stats.flight=null;stats.carry=null;stats.gaps++;}
+ const previous=stats.last,mode=performanceMode(frame.mode),active=['3','play_on'].includes(mode),gap=previous?frame.cycle-previous.cycle:1;
+ if(previous&&frame.cycle<previous.cycle)return;
+ if(previous&&gap===0&&mode===stats.mode&&frame.score?.join(':')===previous.score?.join(':')){const old=performanceSnapshots.get(previous);if(old)performanceSnapshots.set(frame,old);return;}
+ const snapshot=()=>{performanceSnapshots.set(frame,{counts:Object.fromEntries(performanceKeys.map(k=>[k,[...stats.counts[k]]])),control:[...stats.control],shotMetadata:stats.shotMetadata,samples:stats.samples,gaps:stats.gaps});stats.last=frame;stats.mode=mode;};
+ if(gap>5){stats.holder=null;stats.flight=null;stats.carry=null;stats.gaps++;}
+ if(mode!==stats.mode){const match=/^(corner_kick|offside)_([lr])$/.exec(mode);if(match)stats.counts[match[1]==='corner_kick'?'corners':'offsides'][match[2]==='l'?0:1]++;}
+ const resolveShot=(kind,saveSide)=>{if(!stats.flight?.shot)return;stats.counts[kind][stats.flight.side]++;if(saveSide!=null)stats.counts.saves[saveSide]++;stats.flight=null;};
+ const f0=stats.flight;
+ if(f0?.shot&&previous&&frame.score?.[f0.side]>previous.score?.[f0.side])resolveShot('shotOn');
  if(!active){
-  if(stats.flight&&!stats.flight.shot&&/^(kick_in|corner_kick|goal_kick|offside)_[lr]$/.test(String(frame.mode))){
-   const f=stats.flight;stats.counts.passFail[f.side]++;if(f.gain>=8)stats.counts.deepFail[f.side]++;
-  }
+  if(stats.flight?.shot){const f=stats.flight;if(mode==='goal_'+(f.side?'r':'l'))resolveShot('shotOn');else if(Math.abs(frame.ball[0])>=52.5&&Math.abs(frame.ball[1])>7.01)resolveShot('shotOff');}
+  else if(stats.flight&&/^(kick_in|corner_kick|goal_kick|offside)_[lr]$/.test(mode)){const f=stats.flight;stats.counts.passFail[f.side]++;if(f.gain>=8)stats.counts.deepFail[f.side]++;}
   stats.holder=null;stats.flight=null;stats.carry=null;snapshot();return;
  }
- stats.samples++;const owner=performanceOwner(frame),[x,y]=frame.ball,held=stats.holder;
+ stats.samples++;if(frame.ball_velocity&&(frame.kicks||frame.kickers))stats.shotMetadata=true;
+ const owner=performanceOwner(frame),[x,y]=frame.ball,held=stats.holder;
+ if(owner&&gap<=5)stats.control[owner.side]+=Math.max(1,gap);
  if(held&&!stats.flight&&previous){
   const moved=Math.hypot(x-held.x,y-held.y),departed=!owner||owner.id!==held.id;
-  const kickCount=frame.kicks?.[held.id],oldKick=previous.kicks?.[held.id],confirmed=Number.isFinite(kickCount)&&Number.isFinite(oldKick)&&kickCount>oldKick;
+  const kickCount=frame.kicks?.[held.id],oldKick=previous.kicks?.[held.id],confirmed=!frame.kick_faults?.includes(held.id)&&(frame.kickers?.includes(held.id)||Number.isFinite(kickCount)&&Number.isFinite(oldKick)&&kickCount>oldKick);
   const oldPlayer=(frame.players||[]).find(p=>p[0]+':'+p[1]===held.id),tackled=owner&&owner.side!==held.side&&moved<3&&oldPlayer&&Math.hypot(oldPlayer[2]-x,oldPlayer[3]-y)<3;
   if(departed&&!tackled&&moved>=.3&&(confirmed||moved>=1)){
-   const dir=performanceDirection(frame,held.side),dt=frame.cycle-previous.cycle;
-   const velocity=frame.ball_velocity||[(x-previous.ball[0])/dt,(y-previous.ball[1])/dt],vx=velocity[0],vy=velocity[1],goal=dir*52.5;
+   const dir=performanceDirection(frame,held.side),velocity=frame.ball_velocity||[0,0],vx=velocity[0],vy=velocity[1],goal=dir*52.5;
    const crossing=Math.abs(vx)>.05?held.y+vy/vx*(goal-held.x):Infinity;
-   const shot=dir*vx>.3&&Math.abs(goal-held.x)<35&&Math.abs(crossing)<=20;
-   stats.flight={...held,gain:Math.max(0,dir*(x-held.x)),dir,shot,cycle:frame.cycle};
-   if(shot)stats.counts[Math.abs(crossing)<=7.01?'shotOn':'shotOff'][held.side]++;
-   stats.carry=null;
+   // A direction alone never proves a shot. Count only a confirmed launch with an observed outcome.
+   const shot=!!confirmed&&!!frame.ball_velocity&&dir*vx>.5&&Math.abs(goal-held.x)<35&&Math.abs(crossing)<=20;
+   stats.flight={...held,gain:Math.max(0,dir*(x-held.x)),dir,shot,cycle:frame.cycle};stats.carry=null;
   }
  }
  const f=stats.flight;
  if(f){
   f.gain=Math.max(f.gain,f.dir*(x-f.x));const travel=Math.hypot(x-f.x,y-f.y);
-  if(owner){
-   if(!f.shot&&travel>=3&&owner.id!==f.id){const ok=owner.side===f.side;stats.counts[ok?'passOK':'passFail'][f.side]++;if(f.gain>=8)stats.counts[ok?'deepOK':'deepFail'][f.side]++;}
+  const catcher=(frame.catchers||[]).find(id=>id[0]===(f.side?'l':'r'));
+  if(f.shot&&catcher)resolveShot('shotOn',1-f.side);
+  else if(f.shot&&f.dir*x>=52.5)resolveShot(Math.abs(y)<=7.01?'shotOn':'shotOff');
+  else if(owner){
+   if(f.shot&&owner.side!==f.side){resolveShot('shotBlocked');}
+   else if(travel>=3&&owner.id!==f.id){const ok=owner.side===f.side;stats.counts[ok?'passOK':'passFail'][f.side]++;if(f.gain>=8)stats.counts[ok?'deepOK':'deepFail'][f.side]++;}
    stats.flight=null;
   }else if(Math.abs(x)>52.5||Math.abs(y)>34){if(!f.shot&&travel>=3){stats.counts.passFail[f.side]++;if(f.gain>=8)stats.counts.deepFail[f.side]++;}stats.flight=null;stats.holder=null;}
   else if(frame.cycle-f.cycle>80){stats.flight=null;stats.holder=null;}
@@ -330,12 +340,24 @@ function recordPerformance(stats,frame){
  snapshot();
 }
 function preparePerformance(data){if(!data||data.performanceReady)return;const stats=newPerformance();for(const f of data.frames)recordPerformance(stats,f);data.performanceReady=true;}
+function performanceValues(snapshot,frame){
+ const result={goals:frame?.score?.every(Number.isFinite)?frame.score:null};if(!snapshot?.samples)return result;
+ const c=snapshot.counts;for(const key of performanceKeys)result[key]=c[key];
+ result.possession=snapshot.control[0]+snapshot.control[1]>0?snapshot.control.map(n=>100*n/(snapshot.control[0]+snapshot.control[1])):null;
+ result.passes=c.passOK.map((n,i)=>n+c.passFail[i]);result.accuracy=result.passes.map((n,i)=>n?100*c.passOK[i]/n:null);
+ result.shots=c.shotOn.map((n,i)=>n+c.shotOff[i]+c.shotBlocked[i]);
+ if(!snapshot.shotMetadata)for(const key of ['shots','shotOn','shotOff','shotBlocked','saves'])result[key]=null;
+ return result;
+}
+const performanceRows=['goals','possession','shots','shotOn','shotOff','shotBlocked','saves','passes','passOK','accuracy','corners','offsides','passFail','deepOK','deepFail','dribbleOK','dribbleFail'];
 function showPerformance(frame){
  const replay=monitorSource==='file'||$('monitorMode').value==='replay';if(replay)preparePerformance(arenaMonitor.data);
- const snapshot=frame&&performanceSnapshots.get(frame);
+ const snapshot=frame&&performanceSnapshots.get(frame),values=performanceValues(snapshot,frame);
  $('performanceLeft').textContent=$('monitorLeft').textContent;$('performanceRight').textContent=$('monitorRight').textContent;
- for(const key of performanceKeys)for(let i=0;i<2;i++)$('performance_'+key+'_'+i).textContent=snapshot?.samples?String(snapshot.counts[key][i]):'—';
- $('performanceStatus').textContent=snapshot?.samples?'برآورد تا سایکل '+frame.cycle+(snapshot.gaps?' • دادهٔ ناقص':''):'منتظر دادهٔ بازی';
+ for(const key of performanceRows){const pair=values[key];for(let i=0;i<2;i++)$('performance_'+key+'_'+i).textContent=Number.isFinite(pair?.[i])?['possession','accuracy'].includes(key)?pair[i].toFixed(1)+'٪':String(pair[i]):'—';
+  const sum=(pair?.[0]||0)+(pair?.[1]||0),bar=$('performance_bar_'+key);if(bar){bar.style.setProperty?.('--left-share',sum>0?100*pair[0]/sum+'%':'50%');bar.hidden=!pair||pair.some(n=>!Number.isFinite(n))||sum===0;}
+ }
+ $('performanceStatus').textContent=frame?'آمار تا سایکل '+frame.cycle+(snapshot?.gaps?' • پوشش ناقص':''):'منتظر دادهٔ بازی';
 }
 
 function newRatingStats(){return {last:-1,count:0,time:0,control:[0,0],danger:[0,0],actions:[0,0],passes:[0,0],deep:[0,0],dribbles:[0,0],holder:null,carry:null,score:[0,0]};}
@@ -660,7 +682,7 @@ async function parseLocalRCG(text,current=()=>true){
     else if(Array.isArray(item[0])){
      if(item[0][0]==='b'){frame.ball=[num(item[1]),num(item[2])];if(item.length>4)frame.ball_velocity=[num(item[3]),num(item[4])];}
      else if(['l','r'].includes(item[0][0])){
-      const state=parseInt(item[2],16);
+      const state=parseInt(item[2],16);const eventId=item[0][0]+':'+item[0][1];if(state&2&&!(state&4)){frame.kickers??=[];frame.kickers.push(eventId);}if(state&4){frame.kick_faults??=[];frame.kick_faults.push(eventId);}if(state&16&&state&8&&!(state&32)){frame.catchers??=[];frame.catchers.push(eventId);}
       if(state&&!(state&(0x100|0x200|0x80000))){
        const player=[item[0][0],num(item[0][1]),num(item[3]),num(item[4]),item.length>7?num(item[7]):0,!!(state&8)];
        const stamina=item.find(v=>Array.isArray(v)&&v[0]==='s');if(stamina?.length>1)player.push(num(stamina[1]));
