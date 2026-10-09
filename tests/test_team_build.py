@@ -26,11 +26,12 @@ class TeamBuild(unittest.TestCase):
     def test_school_build_directory_and_command_order(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);p=self.project(root);tool=root/'tools';tool.mkdir()
+            (p/'src').mkdir();(p/'CMakeLists.txt').write_text('project(hello)\n')
             # CMake shim generates a real Makefile; compilation is still performed by the real make/cc.
             cmake=tool/'cmake';cmake.write_text('#!/bin/sh\ncat > Makefile <<\'EOF\'\nall:\n\tmkdir -p bin\n\tcc ../hello.c -o bin/player\n\tprintf \'#!/bin/sh\\n./player\\n\' > bin/start.sh\n\tchmod +x bin/start.sh\nEOF\n');cmake.chmod(0o700)
             stages=[];team={'base':'school'}
             with patch.dict(os.environ,{'PATH':str(tool)+':'+os.environ['PATH']}):build_team(team,root,root/'log',threading.Event(),stages.append)
-            self.assertEqual(stages,['./bootstrap','./configure','mkdir -p build','cmake ..','make -j 8'])
+            self.assertEqual(stages,['cmake ..','make -j 8'])
             self.assertTrue((root/team['directory']/'player').is_file());self.assertEqual(team['directory'],'wrapped/Team/build/bin')
 
     def test_failure_keeps_full_terminal_and_does_not_run_matches(self):
@@ -58,6 +59,36 @@ class TeamBuild(unittest.TestCase):
             root=Path(d);self.project(root/'one');self.project(root/'two')
             with self.assertRaisesRegex(ValueError,'expected one'):source_root(root)
             with self.assertRaises(ValueError):source_root(root,'../outside')
+
+    def test_missing_zip_filename_path_falls_back_to_real_project(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);p=self.project(root)
+            self.assertEqual(source_root(root,'aitech-team-pass-v4-full/'),p)
+
+    def test_school_without_bootstrap_and_wrapper_folder(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);p=root/'archive'/'Team';(p/'src').mkdir(parents=True)
+            (p/'CMakeLists.txt').write_text('project(team)\n')
+            self.assertEqual(source_root(root,'archive','school'),p)
+
+    def test_dependency_is_pinned_and_installed_before_team_configure(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);p=self.project(root)
+            (p/'configure.ac').write_text('AC_CHECK_LIB([rcsc],[main])')
+            class Process:
+                pid=123;returncode=0
+                def poll(self):return 0
+            commands=[]
+            def spawn(command,**kwargs):
+                commands.append((command,kwargs['cwd'],kwargs['env'].copy()))
+                if command[0]=='git' and command[1]=='init':Path(command[2]).mkdir()
+                if command==['make','-j','8'] and kwargs['cwd']==p:(p/'src').mkdir()
+                return Process()
+            with patch('team_build.subprocess.Popen',side_effect=spawn):build_team({'base':'university'},root,root/'log',threading.Event())
+            self.assertTrue(any(c[0][0]=='git' and '078d59ff85c336f94c021adac060ef6f2e63c575' in c[0] for c in commands))
+            config=next(c for c in commands if c[0][0]=='./configure' and c[1]==p)
+            self.assertIn('--with-librcsc='+str(root/'.arena-deps'/'install'),config[0])
+            self.assertIn(str(root/'.arena-deps'/'install'/'lib'),config[2]['LD_LIBRARY_PATH'])
 
     def test_cancel_build_does_not_start_script(self):
         with tempfile.TemporaryDirectory() as d:
