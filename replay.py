@@ -2,7 +2,7 @@
 import gzip
 import json
 import math
-from analysis import sexpr
+from analysis import sexpr,params
 
 
 def number(value):
@@ -11,7 +11,7 @@ def number(value):
     return round(result,3)
 
 
-def show_frame(record, previous=None):
+def show_frame(record, previous=None, parameters=None, player_types=None):
     prev=previous or {}
     frame={'cycle':int(record[1]),'ball':None,'players':[],
            'score':prev.get('score',[0,0]),'names':prev.get('names',['Left','Right']),
@@ -35,25 +35,32 @@ def show_frame(record, previous=None):
                     stamina=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='s'),None)
                     if stamina is not None:player.append(number(stamina[1]))
                     frame['players'].append(player)
+                    if parameters is not None:
+                        pt=(player_types or {}).get(int(item[1]),{})
+                        radius=pt.get('player_size',parameters.get('player_size',.3))+pt.get('kickable_margin',parameters.get('kickable_margin',.7))+parameters.get('ball_size',.085)
+                        if math.isfinite(radius) and radius>0:frame.setdefault('control_radii',{})[ident]=radius
                     counters=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='c'),None)
                     if counters is not None:frame.setdefault('kicks',{})[f'{player[0]}:{player[1]}']=int(counters[1])
     return frame
 
 
 def parse_replay(stream):
-    if stream.readline().strip() not in ('ULG4','ULG5'):raise ValueError('Expected ULG4/5 replay')
-    frames=[];context={};step_ms=100
+    if stream.readline().strip() not in ('ULG4','ULG5','ULG6'):raise ValueError('Expected ULG4/5/6 replay')
+    frames=[];context={};step_ms=100;parameters={};player_types={}
     for line in stream:
         text=line.lstrip()
-        if not text.startswith(('(show ','(team ','(playmode ','(server_param ')):continue
+        if not text.startswith(('(show ','(team ','(playmode ','(server_param ','(player_type ')):continue
         record=sexpr(text)
         if record[0]=='team':context.update(names=record[2:4],score=[int(record[4]),int(record[5])])
         elif record[0]=='playmode':context['mode']=record[2]
+        elif record[0]=='player_type':
+            pt=params(record);player_types[int(pt['id'])]=pt
         elif record[0]=='server_param':
+            parameters.update(params(record))
             for item in record[1:]:
                 if isinstance(item,list) and item[0]=='simulator_step':step_ms=max(1,min(1000,int(item[1])))
         else:
-            frame=show_frame(record,context);frames.append(frame);context=frame.copy()
+            frame=show_frame(record,context,parameters,player_types);frames.append(frame);context=frame.copy()
             if len(frames)>50000:raise ValueError('Replay exceeds 50000 frames')
     if not frames:raise ValueError('No monitor frames in this match log')
     if str(context.get('mode')) in ('time_over','2'):

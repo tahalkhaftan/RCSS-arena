@@ -21,3 +21,9 @@ class PerformanceMetadata(unittest.TestCase):
         self.assertEqual(frame['catchers'],['r:1'])
         fault=show_frame(sexpr('(show 4 ((b) 1 2 0 0) ((r 1) 0 0x39 48 0 0 0 0 0))'))
         self.assertNotIn('catchers',fault)
+
+    def test_configured_player_type_controls_kickable_radius(self):
+        import io
+        from replay import parse_replay
+        data=parse_replay(io.StringIO('ULG6\n(server_param (ball_size 0.085))\n(player_type (id 2) (player_size 0.4) (kickable_margin 0.9))\n(show 1 ((b) 1 2 0 0) ((l 2) 2 0x1 1 2 0 0 0 0))\n'))
+        self.assertAlmostEqual(data['frames'][0]['control_radii']['l:2'],1.385)

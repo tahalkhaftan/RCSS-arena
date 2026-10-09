@@ -28,6 +28,9 @@ context.data={final_score:[0,0],frames:[frame(1,0,0,'l'),frame(5,10,0,'l',3)]};v
 assert.equal(el('performanceLeft').textContent,'Alpha');assert.equal(el('performanceRight').textContent,'Beta');assert.equal(el('performance_passOK_0').textContent,'0');
 vm.runInContext('arenaMonitor.index=1;monitorReplayFrame()',context);assert.equal(el('performance_passOK_0').textContent,'1');
 vm.runInContext('arenaMonitor.index=0;monitorReplayFrame()',context);assert.equal(el('performance_passOK_0').textContent,'0','Seeking backwards restores earlier statistics');
+context.finalSaved={status:'complete',left:{goals:16,passes:{completed:8,total:10,accuracy_percent:80},shots:{total:3,on_target:2,off_target:1,blocked:0}},right:{goals:0,passes:{completed:2,total:5,accuracy_percent:40},shots:{total:0,on_target:0,off_target:0,blocked:0}}};
+vm.runInContext("monitorSource='server';$('monitorMode').value='live';arenaMonitor.key='1/1';report={matches:[{round:1,game:1,status:'completed',performance:finalSaved}]};monitorDisplay(null)",context);assert.equal(el('performance_passOK_0').textContent,'8');assert.equal(el('performanceStatus').textContent,'آمار نهایی • RCG کامل');
+vm.runInContext("report=null;monitorSource='file';",context);
 context.monitorDisplay(null);assert.equal(el('performance_passOK_0').textContent,'—','No data is not a fabricated zero');
 assert.ok(source.indexOf('aria-label="عملکرد تیم‌ها"')<source.indexOf('<section class="card results">'));
 const noMetadata=context.performanceValues({counts:context.newPerformance().counts,control:[1,1],samples:1,gaps:0,shotMetadata:false},frame(3,0,0,'l'));assert.equal(noMetadata.shotOn,null);assert.equal(noMetadata.saves,null,'Unknown saves must not appear as invented zero');

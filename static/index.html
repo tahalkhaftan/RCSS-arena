@@ -279,10 +279,10 @@ function drawPitch(frame){
 
 const performanceSnapshots=new WeakMap();
 const performanceKeys=['passOK','passFail','deepOK','deepFail','shotOn','shotOff','shotBlocked','dribbleOK','dribbleFail','corners','offsides','saves'];
-function newPerformance(){return {counts:Object.fromEntries(performanceKeys.map(k=>[k,[0,0]])),last:null,holder:null,flight:null,carry:null,samples:0,gaps:0,control:[0,0],shotMetadata:false,mode:null};}
+function newPerformance(){return {counts:Object.fromEntries(performanceKeys.map(k=>[k,[0,0]])),last:null,holder:null,flight:null,carry:null,samples:0,gaps:0,control:[0,0],shotMetadata:false,mode:null,metadataFrames:0,missingCycles:0,unknown:0,firstCycle:null};}
 function performanceOwner(frame){
  let best=[null,null],dist=[Infinity,Infinity];for(const p of frame.players||[]){if(!['l','r'].includes(p[0]))continue;const i=p[0]==='l'?0:1,d=Math.hypot(p[2]-frame.ball[0],p[3]-frame.ball[1]);if(d<dist[i]){dist[i]=d;best[i]=p;}}
- const i=dist[0]<=1.3&&dist[0]+.15<dist[1]?0:dist[1]<=1.3&&dist[1]+.15<dist[0]?1:-1;
+ const i=dist[0]<=(frame.control_radii?.['l:'+best[0]?.[1]]??1.085)&&dist[0]+.15<dist[1]?0:dist[1]<=(frame.control_radii?.['r:'+best[1]?.[1]]??1.085)&&dist[1]+.15<dist[0]?1:-1;
  return i<0?null:{side:i,id:best[i][0]+':'+best[i][1],player:best[i]};
 }
 function performanceDirection(frame,side){const g=(frame.players||[]).find(p=>p[0]===(side?'r':'l')&&p[5]&&Math.abs(p[2])>20);return g?-Math.sign(g[2]):side?-1:1;}
@@ -293,7 +293,9 @@ function recordPerformance(stats,frame){
  if(previous&&frame.cycle<previous.cycle)return;
  if(previous&&gap===0&&mode===stats.mode&&frame.score?.join(':')===previous.score?.join(':')){const old=performanceSnapshots.get(previous);if(old)performanceSnapshots.set(frame,old);return;}
  const snapshot=()=>{performanceSnapshots.set(frame,{counts:Object.fromEntries(performanceKeys.map(k=>[k,[...stats.counts[k]]])),control:[...stats.control],shotMetadata:stats.shotMetadata,samples:stats.samples,gaps:stats.gaps});stats.last=frame;stats.mode=mode;};
- if(gap>5){stats.holder=null;stats.flight=null;stats.carry=null;stats.gaps++;}
+ if(stats.firstCycle==null)stats.firstCycle=frame.cycle;
+ if(previous&&['3','play_on'].includes(performanceMode(previous.mode))&&gap>1)stats.missingCycles+=gap-1;
+ if(gap>5){if(stats.flight)stats.unknown++;stats.holder=null;stats.flight=null;stats.carry=null;stats.gaps++;}
  if(mode!==stats.mode){const match=/^(corner_kick|offside)_([lr])$/.exec(mode);if(match)stats.counts[match[1]==='corner_kick'?'corners':'offsides'][match[2]==='l'?0:1]++;}
  const resolveShot=(kind,saveSide)=>{if(!stats.flight?.shot)return;stats.counts[kind][stats.flight.side]++;if(saveSide!=null)stats.counts.saves[saveSide]++;stats.flight=null;};
  const f0=stats.flight;
@@ -303,7 +305,7 @@ function recordPerformance(stats,frame){
   else if(stats.flight&&/^(kick_in|corner_kick|goal_kick|offside)_[lr]$/.test(mode)){const f=stats.flight;stats.counts.passFail[f.side]++;if(f.gain>=8)stats.counts.deepFail[f.side]++;}
   stats.holder=null;stats.flight=null;stats.carry=null;snapshot();return;
  }
- stats.samples++;if(frame.ball_velocity&&(frame.kicks||frame.kickers))stats.shotMetadata=true;
+ stats.samples++;if(frame.ball_velocity&&(frame.kicks||frame.kickers)){stats.shotMetadata=true;stats.metadataFrames++;}
  const owner=performanceOwner(frame),[x,y]=frame.ball,held=stats.holder;
  if(owner&&gap<=5)stats.control[owner.side]+=Math.max(1,gap);
  if(held&&!stats.flight&&previous){
@@ -329,7 +331,7 @@ function recordPerformance(stats,frame){
    else if(travel>=3&&owner.id!==f.id){const ok=owner.side===f.side;stats.counts[ok?'passOK':'passFail'][f.side]++;if(f.gain>=8)stats.counts[ok?'deepOK':'deepFail'][f.side]++;}
    stats.flight=null;
   }else if(Math.abs(x)>52.5||Math.abs(y)>34){if(!f.shot&&travel>=3){stats.counts.passFail[f.side]++;if(f.gain>=8)stats.counts.deepFail[f.side]++;}stats.flight=null;stats.holder=null;}
-  else if(frame.cycle-f.cycle>80){stats.flight=null;stats.holder=null;}
+  else if(frame.cycle-f.cycle>80){stats.unknown++;stats.flight=null;stats.holder=null;}
  }
  if(owner){
   if(held&&owner.side!==held.side&&!f&&stats.carry){const c=stats.carry,p=(frame.players||[]).find(p=>p[0]+':'+p[1]===held.id);if(Math.hypot(held.x-c.x,held.y-c.y)>=1&&p&&Math.hypot(p[2]-x,p[3]-y)<3)stats.counts.dribbleFail[held.side]++;}
@@ -339,7 +341,7 @@ function recordPerformance(stats,frame){
  }
  snapshot();
 }
-function preparePerformance(data){if(!data||data.performanceReady)return;const stats=newPerformance();for(const f of data.frames)recordPerformance(stats,f);data.performanceReady=true;}
+function preparePerformance(data){if(!data||data.performanceReady)return;const stats=newPerformance();for(const f of data.frames)recordPerformance(stats,f);data.performance=exportPerformance(stats,{source:'full_rcg',naturalEnd:['time_over','2'].includes(String(data.frames.at(-1)?.mode)),names:data.team_names});data.performanceReady=true;}
 function performanceValues(snapshot,frame){
  const result={goals:frame?.score?.every(Number.isFinite)?frame.score:null};if(!snapshot?.samples)return result;
  const c=snapshot.counts;for(const key of performanceKeys)result[key]=c[key];
@@ -349,15 +351,37 @@ function performanceValues(snapshot,frame){
  if(!snapshot.shotMetadata)for(const key of ['shots','shotOn','shotOff','shotBlocked','saves'])result[key]=null;
  return result;
 }
+function exportPerformance(stats,meta={}){
+ const frame=stats.last,snapshot=frame&&performanceSnapshots.get(frame),values=performanceValues(snapshot,frame),keys={passOK:'completed',passFail:'failed',deepOK:'deep_completed',deepFail:'deep_failed'};
+ const teams=[0,1].map(i=>{
+  const pick=key=>Number.isFinite(values[key]?.[i])?values[key][i]:null;
+  return {name:meta.names?.[i]||frame?.names?.[i]||null,goals:pick('goals'),possession_percent:pick('possession')==null?null:Math.round(pick('possession')*1000)/1000,
+   passes:{total:pick('passes'),...Object.fromEntries(Object.entries(keys).map(([key,label])=>[label,pick(key)])),accuracy_percent:pick('accuracy')==null?null:Math.round(pick('accuracy')*1000)/1000},
+   shots:{total:pick('shots'),on_target:pick('shotOn'),off_target:pick('shotOff'),blocked:pick('shotBlocked')},goalkeeper_saves:pick('saves'),corners:pick('corners'),offsides:pick('offsides'),dribbles:{successful:pick('dribbleOK'),failed:pick('dribbleFail')}};
+ });
+ const missing=stats.missingCycles||0,complete=!!meta.naturalEnd&&missing===0&&stats.firstCycle<=1;
+ return {schema_version:1,method:'rcss_observed_actions_v2',source:meta.source||'full_rcg',status:complete?'complete':'partial',last_cycle:frame?.cycle??null,
+  quality:{first_cycle:stats.firstCycle,active_frames:stats.samples,missing_active_cycles:missing,tracking_resets:stats.gaps,shot_metadata_frames:stats.metadataFrames||0,unknown_action_sequences:stats.unknown||0,goals_without_detected_on_target:[0,1].map(i=>Math.max(0,(teams[i].goals||0)-(teams[i].shots.on_target||0))),
+   exact_metrics:['goals','corners','offsides'],estimated_metrics:['possession_percent','passes','shots','goalkeeper_saves','dribbles'],
+   notes:['Actions are inferred from recorded kicks, control and observed outcomes; tactical intent is not directly logged.','Possession excludes free/shared ball. Pass accuracy covers resolved observed passes.','Unknown or incomplete actions are omitted; zero does not prove no unobserved events occurred.']},left:teams[0],right:teams[1]};
+}
+
 const performanceRows=['goals','possession','shots','shotOn','shotOff','shotBlocked','saves','passes','passOK','accuracy','corners','offsides','passFail','deepOK','deepFail','dribbleOK','dribbleFail'];
+function savedPerformanceValues(data){
+ const values={};const paths={goals:['goals'],possession:['possession_percent'],passes:['passes','total'],passOK:['passes','completed'],passFail:['passes','failed'],deepOK:['passes','deep_completed'],deepFail:['passes','deep_failed'],accuracy:['passes','accuracy_percent'],shots:['shots','total'],shotOn:['shots','on_target'],shotOff:['shots','off_target'],shotBlocked:['shots','blocked'],saves:['goalkeeper_saves'],corners:['corners'],offsides:['offsides'],dribbleOK:['dribbles','successful'],dribbleFail:['dribbles','failed']};
+ for(const [key,path] of Object.entries(paths))values[key]=[data.left,data.right].map(team=>path.reduce((obj,p)=>obj?.[p],team)??null);return values;
+}
+
 function showPerformance(frame){
  const replay=monitorSource==='file'||$('monitorMode').value==='replay';if(replay)preparePerformance(arenaMonitor.data);
- const snapshot=frame&&performanceSnapshots.get(frame),values=performanceValues(snapshot,frame);
+ const snapshot=frame&&performanceSnapshots.get(frame),match=selectedMatch();
+ const final=!replay&&match&&['completed','failed','cancelled'].includes(match.status)&&match.performance?.left&&match.performance?.right?match.performance:null;
+ const values=final?savedPerformanceValues(final):performanceValues(snapshot,frame);
  $('performanceLeft').textContent=$('monitorLeft').textContent;$('performanceRight').textContent=$('monitorRight').textContent;
  for(const key of performanceRows){const pair=values[key];for(let i=0;i<2;i++)$('performance_'+key+'_'+i).textContent=Number.isFinite(pair?.[i])?['possession','accuracy'].includes(key)?pair[i].toFixed(1)+'٪':String(pair[i]):'—';
   const sum=(pair?.[0]||0)+(pair?.[1]||0),bar=$('performance_bar_'+key);if(bar){bar.style.setProperty?.('--left-share',sum>0?100*pair[0]/sum+'%':'50%');bar.hidden=!pair||pair.some(n=>!Number.isFinite(n))||sum===0;}
  }
- $('performanceStatus').textContent=frame?'آمار تا سایکل '+frame.cycle+(snapshot?.gaps?' • پوشش ناقص':''):'منتظر دادهٔ بازی';
+ $('performanceStatus').textContent=final?'آمار نهایی • '+(final.status==='complete'?'RCG کامل':'RCG ناقص'):frame?'آمار تا سایکل '+frame.cycle+(snapshot?.gaps?' • پوشش ناقص':''):'منتظر دادهٔ بازی';
 }
 
 function newRatingStats(){return {last:-1,count:0,time:0,control:[0,0],danger:[0,0],actions:[0,0],passes:[0,0],deep:[0,0],dribbles:[0,0],holder:null,carry:null,score:[0,0]};}
@@ -663,16 +687,17 @@ function rcgRecord(line){
 async function parseLocalRCG(text,current=()=>true){
  const lines=text.split(/\r?\n/);
  if(!['ULG4','ULG5','ULG6'].includes(lines[0]?.replace(/^\uFEFF/,'').trim()))throw Error('این نسخه فقط RCG متنی ULG4، ULG5 و ULG6 را می‌خواند؛ فایل RCL یا RCG باینری قابل خواندن نیست.');
- const frames=[];let names=['Left','Right'],score=[0,0],mode='before_kick_off',step=100;
+ const frames=[],playerTypes={};let names=['Left','Right'],score=[0,0],mode='before_kick_off',step=100;const sizes={player_size:.3,kickable_margin:.7,ball_size:.085};
  const num=v=>{const n=Number(v);if(!Number.isFinite(n))throw Error('مختصات نامعتبر در RCG.');return n;};
  for(let i=1;i<lines.length;i++){
   if(i%400===0){await new Promise(r=>setTimeout(r,0));if(!current())return null;}
-  const line=lines[i].trimStart();if(!/^\((show|team|playmode|server_param)\s/.test(line))continue;
+  const line=lines[i].trimStart();if(!/^\((show|team|playmode|server_param|player_type)\s/.test(line))continue;
   if(line.length>262144)throw Error('رکورد RCG بیش از حد بزرگ است.');
   const rec=rcgRecord(line);
   if(rec[0]==='team'){names=rec.slice(2,4);score=[num(rec[4]),num(rec[5])];}
   else if(rec[0]==='playmode')mode=rec[2];
-  else if(rec[0]==='server_param'){const p=rec.find(x=>Array.isArray(x)&&x[0]==='simulator_step');if(p)step=Math.max(1,Math.min(1000,num(p[1])));}
+  else if(rec[0]==='server_param'){const p=rec.find(x=>Array.isArray(x)&&x[0]==='simulator_step');if(p)step=Math.max(1,Math.min(1000,num(p[1])));for(const k of Object.keys(sizes)){const v=rec.find(x=>Array.isArray(x)&&x[0]===k);if(v)sizes[k]=num(v[1]);}}
+  else if(rec[0]==='player_type'){const id=rec.find(x=>Array.isArray(x)&&x[0]==='id'),pt={};for(const k of ['player_size','kickable_margin']){const v=rec.find(x=>Array.isArray(x)&&x[0]===k);if(v)pt[k]=num(v[1]);}if(id)playerTypes[num(id[1])]=pt;}
   else{
    const frame={cycle:num(rec[1]),ball:null,players:[],names:[...names],score:[...score],mode};
    for(const item of rec.slice(2)){
@@ -686,7 +711,7 @@ async function parseLocalRCG(text,current=()=>true){
       if(state&&!(state&(0x100|0x200|0x80000))){
        const player=[item[0][0],num(item[0][1]),num(item[3]),num(item[4]),item.length>7?num(item[7]):0,!!(state&8)];
        const stamina=item.find(v=>Array.isArray(v)&&v[0]==='s');if(stamina?.length>1)player.push(num(stamina[1]));
-       frame.players.push(player);const counters=item.find(v=>Array.isArray(v)&&v[0]==='c');if(counters?.length>1){frame.kicks??={};frame.kicks[player[0]+':'+player[1]]=num(counters[1]);}
+       frame.players.push(player);const pt=playerTypes[num(item[1])]||{};frame.control_radii??={};frame.control_radii[eventId]=(pt.player_size??sizes.player_size)+(pt.kickable_margin??sizes.kickable_margin)+sizes.ball_size;const counters=item.find(v=>Array.isArray(v)&&v[0]==='c');if(counters?.length>1){frame.kicks??={};frame.kicks[player[0]+':'+player[1]]=num(counters[1]);}
       }
      }
     }
@@ -718,9 +743,9 @@ $('monitorFile').addEventListener('change',async()=>{
   if(!/\.rcg$/i.test(file.name))throw Error('فایل با پسوند .rcg انتخاب کن.');
   const data=await parseLocalRCG(await file.text(),()=>token===localRead&&monitorSource==='file');
   if(!data||token!==localRead||monitorSource!=='file')return;
-  localReplay=data;localReplayName=file.name;
+  localReplay=data;localReplayName=file.name;preparePerformance(data);
   const last=data.frames[data.frames.length-1],complete=['time_over','2'].includes(String(last.mode));
-  localResults={source:'rcg_file',file_name:file.name,status:complete?'completed':'incomplete',total:1,matches:[{round:1,game:1,status:complete?'completed':'incomplete',left_team:data.team_names[0],right_team:data.team_names[1],left_score:data.final_score[0],right_score:data.final_score[1],last_cycle:last.cycle}]};
+  localResults={source:'rcg_file',file_name:file.name,status:complete?'completed':'incomplete',total:1,matches:[{round:1,game:1,status:complete?'completed':'incomplete',left_team:data.team_names[0],right_team:data.team_names[1],left_score:data.final_score[0],right_score:data.final_score[1],last_cycle:last.cycle,performance:data.performance}]};
   showLocalReplay();render();
  }catch(e){if(token===localRead&&monitorSource==='file'){$('monitorBadge').textContent='خطای فایل RCG';$('monitorInfo').textContent=e.message;}}
 });

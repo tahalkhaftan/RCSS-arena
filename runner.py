@@ -9,6 +9,7 @@ import time
 import threading
 from pathlib import Path
 from analysis import analyze, summary, sexpr
+from performance import analyze_performance
 from replay import show_frame,encode_replay
 
 def results_only(value):
@@ -196,19 +197,22 @@ def run_job(job,write):
         for r in range(1,config['rounds']+1):
             for g in range(1,config['games_per_round']+1):
                 if cancel.is_set(): raise Cancelled()
-                entry={'round':r,'game':g,'left_team':config['left']['name'],'right_team':config['right']['name']}
+                entry={'round':r,'game':g,'left_team':config['left']['name'],'right_team':config['right']['name'],'performance':{'schema_version':1,'source':'full_rcg','status':'unavailable','left':None,'right':None}}
                 def progress(info):
                     state['progress']=dict(info,round=r,game=g,match_index=len(state['matches'])+1)
                     write(job)
                 live_options={'live':lambda frame:job['live'].submit(r,g,frame)} if job.get('live') else {}
                 try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress,**live_options))
-                except Cancelled: entry.update(status='cancelled'); state['matches'].append(entry); raise
+                except Cancelled: entry.update(status='cancelled')
                 except Exception as exc:
                     entry.update(status='failed',error=str(exc))
                     entry['last_observed']=state.get('progress',{}).copy()
                 # Replay generation must never change a match's result.
                 folder=root/'logs'/f'round-{r:03d}-game-{g:03d}'
+                entry['performance']={'schema_version':1,'source':'full_rcg','status':'unavailable','left':None,'right':None}
                 if (folder/'match.rcg').exists():
+                    try:entry['performance']=analyze_performance(folder/'match.rcg')
+                    except Exception as exc:entry['performance']['error']=str(exc)
                     try:
                         with (folder/'match.rcg').open(encoding='utf-8') as stream:
                             (folder/'replay.json.gz').write_bytes(encode_replay(stream))
@@ -216,6 +220,7 @@ def run_job(job,write):
                     except Exception as exc:entry['replay_error']=str(exc)
                 state.pop('progress',None)
                 state['matches'].append(entry); state['summary']=summary(state['matches']); write(job)
+                if entry['status']=='cancelled':raise Cancelled()
         failures=sum(m['status']!='completed' for m in state['matches'])
         state['status']='failed' if failures else 'completed'
         if failures: state['error']=f'{failures} of {len(state["matches"])} matches failed; see per-match errors and logs'
