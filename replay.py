@@ -21,7 +21,9 @@ def show_frame(record, previous=None):
         if item[0]=='pm':frame['mode']=str(item[1])
         elif item[0]=='tm':frame.update(names=item[1:3],score=[int(item[3]),int(item[4])])
         elif isinstance(item[0],list):
-            if item[0]==['b']:frame['ball']=[number(item[1]),number(item[2])]
+            if item[0]==['b']:
+                frame['ball']=[number(item[1]),number(item[2])]
+                if len(item)>4:frame['ball_velocity']=[number(item[3]),number(item[4])]
             elif len(item[0])==2 and item[0][0] in ('l','r'):
                 state=int(str(item[2]),16)
                 if state and not state & (0x100|0x200|0x80000):
@@ -29,6 +31,8 @@ def show_frame(record, previous=None):
                     stamina=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='s'),None)
                     if stamina is not None:player.append(number(stamina[1]))
                     frame['players'].append(player)
+                    counters=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='c'),None)
+                    if counters is not None:frame.setdefault('kicks',{})[f'{player[0]}:{player[1]}']=int(counters[1])
     return frame
 
 

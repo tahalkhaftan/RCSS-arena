@@ -15,6 +15,7 @@ jobs:
       - run: node tests/ui_polling.cjs
       - run: node tests/ui_monitor.cjs
       - run: node tests/ui_ratings.cjs
+      - run: node tests/ui_performance.cjs
       - run: node tests/ui_auto_next.cjs
       - run: node tests/ui_smooth_live.cjs
       - run: node tests/ui_live_timeline.cjs
