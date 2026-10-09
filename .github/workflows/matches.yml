@@ -23,7 +23,7 @@ jobs:
       - name: Install server build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential flex libfl-dev bison libboost-all-dev zlib1g-dev nodejs
+          sudo apt-get install -y cmake build-essential flex libfl-dev bison libboost-all-dev zlib1g-dev nodejs autoconf automake libtool pkg-config
       - name: Restore compiled server
         id: server-cache
         uses: actions/cache@v4

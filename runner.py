@@ -10,6 +10,7 @@ import threading
 from pathlib import Path
 from analysis import analyze, summary, sexpr
 from performance import analyze_performance
+from team_build import build_team,BuildCancelled
 from replay import show_frame,encode_replay
 
 def results_only(value):
@@ -194,6 +195,25 @@ def run_job(job,write):
     state=job['state']; root=job['root']; cancel=job['cancel']; config=state['config']
     state['status']='running'; write(job)
     try:
+        state['builds']={}
+        for side in ('left','right'):
+            team=config[side]
+            if team.get('input_mode','binary')!='source':continue
+            record={'status':'building','stage':'Find source folder','log_asset':'build-'+side+'.log'};state['builds'][side]=record;state['phase']='building';write(job)
+            def stage(value):record['stage']=value;write(job)
+            log=root/'logs'/('build-'+side+'.log')
+            try:record.update(build_team(team,root/'teams'/side,log,cancel,stage),status='completed')
+            except BuildCancelled:record.update(status='cancelled',error='Build cancelled');write(job);raise
+            except Exception as exc:
+                record.update(status='failed',error=str(exc))
+                if log.exists():
+                    with log.open('rb') as stream:
+                        stream.seek(max(0,log.stat().st_size-8192));record['log_tail']=stream.read().decode('utf-8','replace')
+            write(job)
+        if any(b['status']=='failed' for b in state['builds'].values()):
+            state['phase']='build_failed'
+            raise RuntimeError('Team source build failed; open the build error log')
+        state['phase']='matches';write(job)
         for r in range(1,config['rounds']+1):
             for g in range(1,config['games_per_round']+1):
                 if cancel.is_set(): raise Cancelled()
@@ -224,7 +244,7 @@ def run_job(job,write):
         failures=sum(m['status']!='completed' for m in state['matches'])
         state['status']='failed' if failures else 'completed'
         if failures: state['error']=f'{failures} of {len(state["matches"])} matches failed; see per-match errors and logs'
-    except Cancelled: state['status']='cancelled'
+    except (Cancelled,BuildCancelled): state['status']='cancelled'
     except Exception as exc: state.update(status='failed',error=str(exc))
     finally:
         state['summary']=summary(state['matches']); state['finished_at']=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()); write(job)

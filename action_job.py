@@ -34,8 +34,16 @@ def main():
     if 'live.json' in assets:
         try:publisher=LivePublisher(json.loads(gh.read_asset(assets['live.json'])))
         except Exception:print('Direct live feed unavailable; periodic reports remain enabled.',flush=True)
-    published_replays=set()
+    published_replays=set();published_build_logs=set()
     def write(job):
+        for side,build in state.get('builds',{}).items():
+            if side in published_build_logs or build.get('status') not in ('failed','completed','cancelled'):continue
+            path=root/'logs'/('build-'+side+'.log')
+            if path.is_file():
+                try:
+                    gh.put(ident,'build-'+side+'.log',path.read_bytes(),'text/plain; charset=utf-8')
+                    published_build_logs.add(side);build['log_ready']=True
+                except Exception:pass
         # Publish each finished game's replay before proceeding to the next game.
         for match in state['matches']:
             key=(match['round'],match['game'])
@@ -57,7 +65,7 @@ def main():
     try:
         for side in ('left','right'):
             dest=root/'teams'/side;extract(gh.read_asset(assets[side+'.zip']),dest)
-            if not (dest/config[side]['directory']).is_dir():raise ValueError('Folder missing: '+side)
+            if config[side].get('input_mode','binary')=='binary' and not (dest/config[side]['directory']).is_dir():raise ValueError('Folder missing: '+side)
         job={'state':state,'root':root,'cancel':RemoteCancel(gh,ident),'live':publisher}
         # Prevent site secrets/token being inherited by player processes.
         for key in ('GITHUB_TOKEN','STORAGE_TOKEN','ARENA_PASSWORD','ARENA_USER'):os.environ.pop(key,None)

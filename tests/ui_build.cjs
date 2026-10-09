@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const harness=fs.readFileSync('tests/ui_monitor.cjs','utf8').split('const frame={')[0];
+eval('(()=>{'+harness.replace("const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');",'')+';globalThis.buildHarness={context,el};})()');
+const {context,el}=globalThis.buildHarness;
+el('leftInputMode').value='source';el('leftBase').value='school';el('leftPreset').value='';el('leftName').value='Team';el('leftSourceDir').value='archive/Team';
+el('leftInputMode').change();assert.equal(el('leftBuildPanel').className,'');assert.equal(el('leftDir').value,'build/bin');assert.equal(el('leftDir').readOnly,true);assert.equal(el('leftCmd').value,'./start.sh');assert.equal(el('leftPreset').disabled,true);
+let config=context.teamSettings('left');assert.equal(config.input_mode,'source');assert.equal(config.base,'school');assert.equal(config.source_directory,'archive/Team');assert.equal(config.directory,'.');
+el('leftBase').value='university';el('leftCmd').value='./custom.sh';el('leftBase').change();assert.equal(el('leftDir').value,'src');assert.equal(el('leftCmd').value,'./custom.sh');
+el('leftInputMode').value='binary';el('leftInputMode').change();assert.equal(el('leftBuildPanel').className,'hidden');assert.equal(el('leftDir').readOnly,false);
+vm.runInContext("report={status:'running',total:1,matches:[],builds:{left:{status:'building'}}};render()",context);assert.equal(el('buildErrors').className,'card hidden');
+vm.runInContext("job={id:'7',api:'https://test'};report={status:'failed',total:1,matches:[],builds:{left:{status:'failed',error:'configure error',log_tail:'tail'},right:{status:'completed'}}};render()",context);assert.equal(el('buildErrors').className,'card');assert.equal(el('leftBuildError').className,'');assert.equal(el('rightBuildError').className,'hidden');
+context.fetch=async()=>({ok:true,text:async()=>'<script>not executed</script>\nFULL TERMINAL OUTPUT'});
+(async()=>{el('leftBuildError').open=true;el('leftBuildError').toggle();for(let i=0;i<8;i++)await Promise.resolve();assert.ok(el('leftBuildLog').textContent.includes('FULL TERMINAL OUTPUT'));assert.ok(el('leftBuildLog').textContent.startsWith('<script>'));console.log('PASS: binary/source selector, base paths, custom startup, failure-only error panel and full plain-text logs');})().catch(e=>{console.error(e);process.exitCode=1;});

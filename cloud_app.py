@@ -101,6 +101,19 @@ class Handler(BaseHandler):
                     if is_arena_release(rel):
                         rows.append({'id':str(rel['id']),'status':'unknown','started_at':rel['created_at']})
                 return self.send(200,rows)
+            build_match=re.fullmatch(r'/api/tests/(\d+)/build-log/(left|right)',path)
+            if build_match:
+                ident,side=build_match.groups()
+                if not is_arena_release(gh.release(ident)):raise ValueError('Not an Arena test')
+                asset=gh.assets(ident).get('build-'+side+'.log')
+                if not asset:return self.send(409,{'error':'Build log publication pending; retry shortly'})
+                with gh.open('/releases/assets/'+str(asset['id']),binary=True) as response:
+                    self.send_response(200);self.send_header('Content-Type','text/plain; charset=utf-8');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(asset['size']));self.end_headers()
+                    while True:
+                        chunk=response.read(65536)
+                        if not chunk:break
+                        self.wfile.write(chunk)
+                return
             replay_match=re.fullmatch(r'/api/tests/(\d+)/replay/(\d+)/(\d+)',path)
             if replay_match:
                 ident,r,g=map(int,replay_match.groups())

@@ -97,6 +97,16 @@ def validate(c):
     if type(c.get('synch_mode')) is not bool: raise ValueError('synch_mode must be boolean')
     for side in ('left','right'):
         t=c.get(side,{})
+        mode=t.get('input_mode','binary')
+        if mode not in ('binary','source'):raise ValueError('Invalid team input mode')
+        t['input_mode']=mode
+        if mode=='source':
+            if t.get('base') not in ('school','university'):raise ValueError('Choose school or university base')
+            source=t.get('source_directory','')
+            if not isinstance(source,str) or len(source)>500:raise ValueError('Invalid source directory')
+            p=Path(source)
+            if p.is_absolute() or '..' in p.parts or '\\' in source:raise ValueError('Source directory must be relative')
+            t['directory']=t.get('directory') or '.'
         for key in ('name','directory','command'):
             if not isinstance(t.get(key),str) or not t[key].strip() or len(t[key])>500: raise ValueError('Missing/invalid team '+key)
         p=Path(t['directory'])
@@ -124,6 +134,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send(200,(Path(__file__).parent/'static/index.html').read_bytes(),'text/html; charset=utf-8'); return
         if path=='/api/tests':
             with LOCK: self.send(200,[{'id':k,'status':v['state']['status'],'total':v['state']['total'],'started_at':v['state']['started_at']} for k,v in JOBS.items()]); return
+        build_match=re.fullmatch(r'/api/tests/([a-f0-9]{32})/build-log/(left|right)',path)
+        if build_match:
+            job=JOBS.get(build_match[1])
+            log=job['root']/'logs'/('build-'+build_match[2]+'.log') if job else None
+            if not log or not log.is_file():return self.send(404,{'error':'Build log is not available'})
+            self.send(200,log.read_bytes(),'text/plain; charset=utf-8');return
         m=re.fullmatch(r'/api/tests/([a-f0-9]{32})(/logs.zip)?',path)
         if not m or m[1] not in JOBS: self.send(404,{'error':'Not found'}); return
         job=JOBS[m[1]]
@@ -163,7 +179,7 @@ class Handler(BaseHTTPRequestHandler):
                 ident=uuid.uuid4().hex; root=DATA/ident; root.mkdir()
                 for side in ('left','right'):
                     dest=root/'teams'/side; extract(fields[side+'_file'],dest)
-                    if not (dest/config[side]['directory']).is_dir(): raise ValueError('Team folder not found: '+side)
+                    if config[side].get('input_mode','binary')=='binary' and not (dest/config[side]['directory']).is_dir(): raise ValueError('Team folder not found: '+side)
                 state={'id':ident,'demo':False,'status':'queued','server_version':'19.0.0','config':config,'total':config['rounds']*config['games_per_round'],'started_at':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'matches':[],'archive_ready':False}
                 job={'state':state,'root':root,'cancel':threading.Event()}; JOBS[ident]=job; write(job)
                 t=threading.Thread(target=run_job,args=(job,write),daemon=True); job['thread']=t;t.start()
