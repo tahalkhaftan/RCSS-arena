@@ -1,0 +1,32 @@
+name: Build source team
+run-name: Team build ${{ inputs.release_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Private team build release ID
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: arena-team-build-${{ inputs.release_id }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential cmake autoconf automake libtool pkg-config libboost-all-dev zlib1g-dev
+      - name: Build and publish reusable team
+        env:
+          STORAGE_TOKEN: ${{ secrets.STORAGE_TOKEN }}
+          STORAGE_REPOSITORY: ${{ vars.STORAGE_REPOSITORY }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 build_job.py

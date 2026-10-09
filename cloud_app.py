@@ -8,6 +8,7 @@ from app import Handler as BaseHandler,validate
 from github_api import GitHub,storage_client,is_arena_release
 from pathlib import Path
 from presets import catalog,resolve_teams
+from build_store import build_state,build_signature,is_build_release,compiled_team
 from replay import asset_name,encode_replay
 import tempfile,zipfile
 from live import connection_info,valid_token,RELAY,VIEWERS
@@ -95,6 +96,24 @@ class Handler(BaseHandler):
             if path=='/api/teams':
                 return self.send(200,[{k:t[k] for k in ('id','name','directory','command','archive')} for t in catalog()])
             workflow=GitHub();gh=storage_client();gh.require_private()
+            build=re.fullmatch(r'/api/builds/(\d+)(/log)?',path)
+            if build:
+                ident=build[1];info=build_state(gh,ident)
+                if build[2]:
+                    asset=gh.assets(ident).get('build.log')
+                    if not asset:return self.send(409,{'error':'Build log is not ready'})
+                    with gh.open('/releases/assets/'+str(asset['id']),binary=True) as response:
+                        self.send_response(200);self.send_header('Content-Type','text/plain; charset=utf-8');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(asset['size']));self.end_headers()
+                        while True:
+                            chunk=response.read(65536)
+                            if not chunk:break
+                            self.wfile.write(chunk)
+                    return
+                if info.get('status') in ('queued','building'):
+                    runs=workflow.json('/actions/workflows/build-team.yml/runs?event=workflow_dispatch&per_page=100')['workflow_runs']
+                    run=next((r for r in runs if r.get('display_title')=='Team build '+ident),None)
+                    if run and run.get('status')=='completed' and run.get('conclusion')!='success':info.update(status='failed',error='Build workflow failed or was cancelled; check GitHub Actions logs')
+                return self.send(200,info)
             if path=='/api/tests':
                 rels=gh.json('/releases?per_page=100');rows=[]
                 for rel in rels:
@@ -185,7 +204,7 @@ class Handler(BaseHandler):
                 # Graceful runner cancellation. If queued/building, takes effect when runner starts.
                 gh.put(m[1],'cancel.json',b'{"cancel":true}','application/json');CACHE.pop(m[1],None)
                 return self.send(202,{'status':'cancellation_requested'})
-            if path!='/api/tests':return self.send(404,{'error':'Not found'})
+            if path not in ('/api/tests','/api/builds'):return self.send(404,{'error':'Not found'})
             length=int(self.headers.get('Content-Length',0))
             if length<=0:return self.send(413,{'error':'Empty upload'})
             ctype=self.headers.get('Content-Type','')
@@ -194,6 +213,25 @@ class Handler(BaseHandler):
             msg=BytesParser(policy=default).parsebytes(('Content-Type: '+ctype+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+payload)
             fields={p.get_param('name',header='content-disposition'):p.get_payload(decode=True) for p in msg.iter_parts()}
             config=json.loads(fields['config'])
+            if path=='/api/builds':
+                team=config.get('team',{})
+                if team.get('input_mode')!='source':raise ValueError('Choose source upload mode')
+                validate({'rounds':1,'games_per_round':1,'synch_mode':True,'left':team,'right':dict(team)})
+                blob=fields.get('source_file')
+                if not blob:raise ValueError('Upload the source ZIP before building')
+                tag='arena-build-'+uuid.uuid4().hex
+                info={'status':'queued','signature':build_signature(team),'stage':'Waiting for GitHub Actions'}
+                rel=gh.json('/releases','POST',{'tag_name':tag,'name':tag,'draft':True,'body':json.dumps({'build_state':info},ensure_ascii=False)})
+                ident=rel['id']
+                try:
+                    gh.put(ident,'source.zip',blob,'application/zip')
+                    workflow.json('/actions/workflows/build-team.yml/dispatches','POST',{'ref':os.environ.get('GITHUB_REF','main'),'inputs':{'release_id':str(ident)}})
+                except Exception:
+                    gh.json('/releases/'+str(ident),'DELETE');raise
+                return self.send(202,{'id':str(ident)})
+            for side in ('left','right'):
+                if config.get(side,{}).get('input_mode')=='source':
+                    config[side],fields[side+'_file']=compiled_team(gh,config[side])
             teams=resolve_teams(config,fields)
             config=validate(config)
             if config['rounds']*config['games_per_round']>500:raise ValueError('Maximum 500 matches per request')

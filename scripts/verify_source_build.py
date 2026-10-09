@@ -3,6 +3,8 @@ import os,subprocess,sys,threading
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from team_build import build_team
+from build_store import pack_compiled
+from app import extract
 
 base=sys.argv[1]
 projects={
@@ -21,12 +23,16 @@ team={'base':base,'source_directory':'wrong-zip-filename/','command':'./start.sh
 log=Path('source-build-'+base+'.log')
 try:
     result=build_team(team,root,log,threading.Event(),lambda stage:print(stage,flush=True))
-    runtime=root/result['directory']
+    # Relocate the exact binary ZIP reused by matches; don't rebuild it.
+    compiled=pack_compiled(team,root)
+    relocated=Path(os.environ['RUNNER_TEMP'])/('arena-compiled-'+base)
+    extract(compiled,relocated)
+    runtime=relocated/'bin'
     assert (runtime/'start.sh').is_file(),runtime
     binaries=[p for p in runtime.rglob('*') if p.is_file() and p.read_bytes()[:4]==b'\x7fELF']
     assert binaries,'No compiled ELF binaries found'
     env=os.environ.copy()
-    env['LD_LIBRARY_PATH']=':'.join(sorted({str(p.parent) for p in root.rglob('*.so*') if p.is_file()}))
+    env['LD_LIBRARY_PATH']=':'.join(sorted({str(p.parent) for p in relocated.rglob('*.so*') if p.is_file()}))
     for binary in binaries:
         libs=subprocess.run(['ldd',str(binary)],capture_output=True,text=True,env=env)
         assert 'not found' not in libs.stdout,libs.stdout
