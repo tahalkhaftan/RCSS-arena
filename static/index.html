@@ -42,6 +42,7 @@
 .team-rating span{font:12px Tahoma}.team-rating strong{font:700 24px Arial}.team-rating small{font:12px Arial;color:#367565}
 .rating-right{justify-self:end;background:#fff0df;color:#885019;border-color:#ddb180}.rating-right small{color:#926946}
 @media(max-width:700px){.monitor-score,.monitor-ratings{grid-template-columns:minmax(0,1fr) 95px minmax(0,1fr);gap:6px}.monitor-score .score-team{gap:6px}.monitor-score .score-team span{font-size:12px}.monitor-score .score-team strong{font-size:24px}.cycle-box{font-size:11px}.team-rating{padding:6px;gap:4px;flex-wrap:wrap}.team-rating span{font-size:10px}.team-rating strong{font-size:19px}}
+.live-timeline{position:relative;direction:ltr;margin-top:12px}.live-timeline input{position:relative;z-index:2;background:transparent;display:block;margin:0}.live-edge{position:absolute;right:0;top:50%;height:8px;width:8px;border-radius:50%;background:var(--green);opacity:.3;pointer-events:none;transform:translateY(-50%)}.live-trail{position:absolute;right:0;top:50%;height:3px;background:var(--green);opacity:.14;pointer-events:none;transform:translateY(-50%);width:0}.live-button{color:var(--green)}.live-button[data-following="true"]{background:var(--green);color:#10251e}
 </style>
 </head>
 <body><div class="goal-toast" id="goalToast" role="status" aria-live="polite" aria-atomic="true"><strong id="goalToastTitle"></strong><span id="goalToastScore" dir="ltr"></span></div><main>
@@ -64,8 +65,8 @@
 <div class="monitor-score" dir="ltr"><div class="score-team score-left"><span id="monitorLeft">Left</span><strong id="monitorLeftGoals">—</strong></div><div class="cycle-box" id="monitorCycle" dir="rtl">—</div><div class="score-team score-right"><strong id="monitorRightGoals">—</strong><span id="monitorRight">Right</span></div><span id="monitorScore" class="hidden" aria-hidden="true">— : —</span></div>
 <canvas id="pitch" width="1100" height="750" aria-label="زمین، توپ و بازیکن‌های مسابقه">مرورگر شما نمایش زمین را پشتیبانی نمی‌کند.</canvas>
 <div class="monitor-ratings" dir="ltr"><div class="team-rating rating-left"><span>نمرهٔ تیم چپ</span><strong id="monitorLeftRating">—</strong></div><div></div><div class="team-rating rating-right"><span>نمرهٔ تیم راست</span><strong id="monitorRightRating">—</strong></div></div>
-<div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label></div>
-<input type="range" id="monitorSeek" min="0" max="0" value="0" disabled aria-label="جابه‌جایی در بازپخش">
+<div class="monitor-controls"><button class="btn" type="button" id="monitorPlay" disabled>پخش ▶</button><button class="btn live-button" type="button" id="monitorLiveButton" hidden disabled>● لایو</button><label>سرعت بازپخش <select id="monitorSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label></div>
+<div class="live-timeline"><span class="live-trail" id="monitorLiveTrail" hidden></span><span class="live-edge" id="monitorLiveEdge" hidden title="آخرین لحظهٔ دریافت‌شده"></span><input type="range" id="monitorSeek" min="0" max="0" value="0" disabled aria-label="خط زمان مسابقه"></div>
 <p class="foot" id="monitorConcurrent" aria-live="polite"></p>
 <p class="foot" id="monitorInfo" aria-live="polite">پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.</p>
 </section>
@@ -243,7 +244,7 @@ const directLive={source:null,test:null,frames:new Map(),received:0,timers:[],wa
 let monitorSource='server',localReplayIndex=0,localResults=null,localReplay=null,localReplayName='',localRead=0;
 const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
-function monitorClear(){stopSmoothLive();clearGoalNotice();monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
+function monitorClear(){hideLiveTimeline();stopSmoothLive();clearGoalNotice();monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
 function selectedMatch(){if(monitorSource==='file')return undefined;return (report?.matches||[]).find(m=>m.round+'/'+m.game===arenaMonitor.key);}
 function playerStaminaColor(side,stamina){
  const base=side==='l'?[104,183,255]:[255,179,92];
@@ -376,6 +377,32 @@ async function loadMonitorReplay(){
 }
 
 const smoothLive={raf:null,offset:null,delay:250};
+function isLiveView(){return monitorSource==='server'&&$('monitorMode').value==='live';}
+function hideLiveTimeline(){for(const id of ['monitorLiveButton','monitorLiveTrail','monitorLiveEdge'])$(id).hidden=true;}
+function liveHistory(){return directLive.frames.get(arenaMonitor.key);}
+function timelineFrame(entry,now=Date.now()){
+ const history=entry.history||entry.samples;if(!history?.length)return entry.frame;
+ const first=history[0].stamp,last=history[history.length-1].stamp;
+ let target;
+ if(entry.cursor==null)target=Math.max(first,Math.min(last,Math.max(entry.followFloor||first,now-(smoothLive.offset||0)-smoothLive.delay)));
+ else{
+  if(entry.playing)entry.cursor+=(now-(entry.playAt||now))*Number($('monitorSpeed').value||1);
+  entry.playAt=now;entry.cursor=Math.max(first,Math.min(last,entry.cursor));target=entry.cursor;
+  if(entry.playing&&target>=last){entry.cursor=null;entry.playing=false;}
+ }
+ const following=entry.cursor==null,frame=smoothFrame(history,target);
+ $('monitorSeek').max=Math.max(0,last-first);$('monitorSeek').value=following?last-first:target-first;$('monitorSeek').disabled=history.length<2;
+ $('monitorPlay').disabled=history.length<2;$('monitorPlay').textContent=entry.playing?'توقف موقت ❚❚':'پخش ▶';
+ $('monitorLiveButton').hidden=false;$('monitorLiveButton').disabled=false;$('monitorLiveButton').setAttribute('data-following',String(following));$('monitorLiveButton').setAttribute('aria-pressed',String(following));
+ $('monitorLiveEdge').hidden=following;$('monitorLiveTrail').hidden=following;$('monitorLiveTrail').style.width=(last>first?100*(last-target)/(last-first):0)+'%';
+ return frame;
+}
+function paintLiveTimeline(entry,now=Date.now()){
+ const frame=timelineFrame(entry,now);monitorDisplay(frame);
+ if(entry.cursor!=null)$('monitorBadge').textContent='مرور پخش زنده';
+ return frame;
+}
+
 function blendLiveFrames(a,b,t){
  if(!a||!b)return b||a;
  t=Math.max(0,Math.min(1,t));
@@ -395,10 +422,11 @@ function blendLiveFrames(a,b,t){
 function smoothFrame(samples,target){
  if(!samples?.length)return null;
  if(target<=samples[0].stamp)return samples[0].frame;
- for(let i=1;i<samples.length;i++){
-  const a=samples[i-1],b=samples[i];if(target>b.stamp)continue;
-  const gap=b.stamp-a.stamp;
-  if(gap<=0||gap>500)return a.frame; // Hold rather than invent motion through an outage.
+ let lo=1,hi=samples.length-1;
+ while(lo<hi){const mid=(lo+hi)>>1;if(samples[mid].stamp<target)lo=mid+1;else hi=mid;}
+ if(target<=samples[lo].stamp){
+  const a=samples[lo-1],b=samples[lo],gap=b.stamp-a.stamp;
+  if(gap<=0||gap>500)return a.frame;
   return blendLiveFrames(a.frame,b.frame,(target-a.stamp)/gap);
  }
  return samples[samples.length-1].frame;
@@ -413,23 +441,23 @@ function startSmoothLive(){
   smoothLive.raf=null;
   if(monitorSource!=='server'||$('monitorMode').value!=='live')return;
   const entry=directLive.frames.get(arenaMonitor.key);
-  if(!entry||Date.now()-entry.received>=3500){monitorLive();return;}
-  const frame=smoothFrame(entry.samples,Date.now()-(smoothLive.offset||0)-smoothLive.delay);
-  if(frame)drawPitch(frame);
+  if(!entry)return;
+  paintLiveTimeline(entry);
+  if(Date.now()-entry.received>=3500&&entry.cursor==null){monitorLive();return;}
   smoothLive.raf=requestAnimationFrame(tick);
  };
  smoothLive.raf=requestAnimationFrame(tick);
 }
 
-function stopDirectLive(){
+function stopDirectLive(preserve=false){
  stopSmoothLive();smoothLive.offset=null;
- directLive.source?.close();directLive.source=null;directLive.test=null;directLive.frames.clear();directLive.received=0;
+ directLive.source?.close();directLive.source=null;if(!preserve){directLive.test=null;directLive.frames.clear();directLive.received=0;}
  for(const t of directLive.timers)clearTimeout(t);directLive.timers=[];
  if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);directLive.watchdog=null;
 }
 function startDirectLive(){
  if(typeof EventSource==='undefined'||!job||!report||report.demo)return;
- if(!['queued','running'].includes(report.status)){stopDirectLive();return;}
+ if(!['queued','running'].includes(report.status)){stopDirectLive(true);return;}
  const key=job.api+'/'+job.id;if(directLive.test===key)return;
  stopDirectLive();directLive.test=key;
  const source=new EventSource(job.api+'/api/tests/'+encodeURIComponent(job.id)+'/live',{withCredentials:true});directLive.source=source;
@@ -446,11 +474,13 @@ function startDirectLive(){
    trackServerGoal(item.round,item.game,item.frame);
    const previous=directLive.frames.get(key);
    if(previous&&stamp<previous.stamp)continue;
-   const samples=previous?.samples||[],ratingStats=previous?.ratingStats||newRatingStats();addRatingFrame(ratingStats,item.frame);
+   const history=previous?.history||[],samples=previous?.samples||[],ratingStats=previous?.ratingStats||newRatingStats();addRatingFrame(ratingStats,item.frame);
    if(samples.length&&samples[samples.length-1].stamp===stamp)samples[samples.length-1]={stamp,frame:item.frame};
    else samples.push({stamp,frame:item.frame});
+   if(history.length&&history[history.length-1].stamp===stamp)history[history.length-1]={stamp,frame:item.frame};else history.push({stamp,frame:item.frame});
+   if(history.length>12000)history.splice(0,history.length-12000);
    while(samples.length>40||samples.length>2&&samples[0].stamp<stamp-2000)samples.shift();
-   directLive.frames.set(key,{frame:item.frame,received:now,stamp,samples,ratingStats});
+   directLive.frames.set(key,{frame:item.frame,received:now,stamp,samples,history,ratingStats,cursor:previous?.cursor??null,playing:previous?.playing||false,playAt:previous?.playAt??now,followFloor:previous?.followFloor});
    if(directLive.frames.size>4)directLive.frames.delete(directLive.frames.keys().next().value);
   }
   followNextGame(frames[frames.length-1].round+'/'+frames[frames.length-1].game);
@@ -462,12 +492,25 @@ function startDirectLive(){
 }
 function monitorLive(){
  if(monitorSource==='file')return;
- const fresh=directLive.frames.get(arenaMonitor.key);
- if(fresh&&Date.now()-fresh.received<3500){
-  monitorDisplay(fresh.frame,typeof requestAnimationFrame!=='function');startSmoothLive();$('monitorBadge').textContent='پخش مستقیم';
+ let fresh=directLive.frames.get(arenaMonitor.key);
+ const progress=report?.progress;
+ // During a stream outage keep accepting newer periodic reports into the timeline.
+ if((!fresh||Date.now()-fresh.received>=3500||fresh.periodic)&&progress?.frame&&progress.round+'/'+progress.game===arenaMonitor.key&&(!fresh||progress.frame.cycle>fresh.frame.cycle)){
+  const frame={...progress.frame,score:[progress.left_score??progress.frame.score[0],progress.right_score??progress.frame.score[1]],names:progress.server_team_names||progress.frame.names};
+  const stamp=Date.now()-(smoothLive.offset||0),history=fresh?.history||[],ratingStats=fresh?.ratingStats||newRatingStats();
+  history.push({stamp,frame});if(history.length>12000)history.splice(0,history.length-12000);addRatingFrame(ratingStats,frame);
+  fresh={...fresh,frame,history,samples:history.slice(-40),stamp,received:Date.now(),periodic:true,ratingStats};directLive.frames.set(arenaMonitor.key,fresh);
+ }
+ if(fresh&&!fresh.periodic&&Date.now()-fresh.received<3500){
+  $('monitorBadge').textContent='پخش مستقیم';paintLiveTimeline(fresh);startSmoothLive();
   $('monitorInfo').textContent='دریافت پیوستهٔ موقعیت واقعی توپ و بازیکن‌ها — سایکل '+fresh.frame.cycle;return;
  }
- stopSmoothLive();
+ if(fresh?.history?.length){
+  $('monitorBadge').textContent=fresh.periodic?'گزارش دوره‌ای':'آخرین دادهٔ دریافت‌شده';paintLiveTimeline(fresh);
+  if(fresh.cursor!=null&&fresh.playing)startSmoothLive();else stopSmoothLive();
+  $('monitorInfo').textContent='تاریخچهٔ دریافت‌شده در این صفحه؛ برای بازپخش کامل از فایل RCG استفاده کن.';return;
+ }
+ hideLiveTimeline();stopSmoothLive();$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;
  const live=report?.progress;
  if(live&&live.round+'/'+live.game===arenaMonitor.key&&live.frame){
   monitorDisplay({...live.frame,score:[live.left_score??live.frame.score[0],live.right_score??live.frame.score[1]],names:live.server_team_names||live.frame.names});
@@ -514,8 +557,10 @@ $('monitorAutoNext').addEventListener('change',()=>updateMonitor());
 $('monitorMatch').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;arenaMonitor.key=$('monitorMatch').value;monitorClear();if(selectedMatch())loadMonitorReplay();else{$('monitorMode').value='live';monitorLive();}});
 $('monitorMode').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();if($('monitorMode').value==='replay')loadMonitorReplay();else{updateMonitor();}});
 $('monitorLoad').addEventListener('click',loadMonitorReplay);
-$('monitorPlay').addEventListener('click',()=>{if(arenaMonitor.playing){monitorStop();return;}if(!arenaMonitor.data)return;if(arenaMonitor.index>=arenaMonitor.data.frames.length-1)arenaMonitor.index=0;arenaMonitor.playing=true;$('monitorPlay').textContent='توقف موقت ❚❚';monitorTick();});
-$('monitorSeek').addEventListener('input',()=>{clearGoalNotice();monitorStop();arenaMonitor.index=Number($('monitorSeek').value);monitorReplayFrame();});
+$('monitorPlay').addEventListener('click',()=>{if(isLiveView()){const entry=liveHistory();if(!entry?.history?.length)return;if(entry.cursor==null)entry.cursor=entry.history[entry.history.length-1].stamp;entry.playing=!entry.playing;entry.playAt=Date.now();paintLiveTimeline(entry);startSmoothLive();return;}if(arenaMonitor.playing){monitorStop();return;}if(!arenaMonitor.data)return;if(arenaMonitor.index>=arenaMonitor.data.frames.length-1)arenaMonitor.index=0;arenaMonitor.playing=true;$('monitorPlay').textContent='توقف موقت ❚❚';monitorTick();});
+$('monitorSeek').addEventListener('input',()=>{clearGoalNotice();monitorStop();if(isLiveView()){const entry=liveHistory();if(!entry?.history?.length)return;const first=entry.history[0].stamp,last=entry.history[entry.history.length-1].stamp;entry.cursor=Math.max(first,Math.min(last,first+Number($('monitorSeek').value||0)));entry.playing=false;entry.playAt=Date.now();paintLiveTimeline(entry);startSmoothLive();return;}arenaMonitor.index=Number($('monitorSeek').value);monitorReplayFrame();});
+
+$('monitorLiveButton').addEventListener('click',()=>{if(!isLiveView())return;const entry=liveHistory();if(!entry)return;entry.cursor=null;entry.playing=false;entry.followFloor=entry.history?.at(-1)?.stamp;monitorLive();});
 
 function rcgRecord(line){
  const tokens=line.match(/"(?:\\.|[^"\\])*"|[()]|[^\s()]+/g)||[],stack=[];let root;
