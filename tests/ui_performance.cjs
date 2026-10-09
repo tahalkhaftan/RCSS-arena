@@ -35,3 +35,10 @@ context.monitorDisplay(null);assert.equal(el('performance_passOK_0').textContent
 assert.ok(source.indexOf('aria-label="عملکرد تیم‌ها"')<source.indexOf('<section class="card results">'));
 const noMetadata=context.performanceValues({counts:context.newPerformance().counts,control:[1,1],samples:1,gaps:0,shotMetadata:false},frame(3,0,0,'l'));assert.equal(noMetadata.shotOn,null);assert.equal(noMetadata.saves,null,'Unknown saves must not appear as invented zero');
 console.log('PASS: performance passes, deep passes, turnovers, dribbles, shots, missing samples, deduplication and replay/source/cursor isolation');
+
+assert.equal(context.carrySuccessRate(3,1),75);assert.equal(context.carrySuccessRate(0,2),0);assert.equal(context.carrySuccessRate(0,0),null);
+assert.deepEqual(Array.from(context.savedPerformanceValues({left:{dribbles:{successful:3,failed:1}},right:{ball_carries:{successful:1,failed:1,success_rate_percent:50}}}).carrySuccess),[75,50]);
+context.carryFixture={left:{ball_carries:{successful:3,failed:1,success_rate_percent:75}},right:{ball_carries:{successful:0,failed:0,success_rate_percent:null}},status:'complete'};
+vm.runInContext("monitorSource='server';$('monitorMode').value='live';arenaMonitor.key='1/1';report={matches:[{round:1,game:1,status:'completed',performance:carryFixture}]};monitorDisplay(null)",context);
+assert.equal(el('performance_carrySuccess_0').textContent,'75.0٪');assert.equal(el('performance_carrySuccess_1').textContent,'—');
+assert.ok(source.includes('حرکت با توپ موفق'));assert.ok(!source.includes('>دریبل موفق'));assert.ok(!source.includes('id="performance_dribbleFail_0"'));
