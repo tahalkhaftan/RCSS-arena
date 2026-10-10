@@ -72,6 +72,16 @@ int main(int argc,char **argv){
    with zipfile.ZipFile(p/'logs.zip') as z:
     root='logs/round-001-game-001/server-logs/'
     for file in ('decisions.csv','match.rcg','match.rcl','ocl-log/left-team/Blue-7.ocl'):self.assertIn(root+file,z.namelist())
+ def test_stopped_cycle_messages_do_not_make_unbounded_csv_cells(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d);self.fixture(p)
+   file=p/'ocl-log/left-team/Blue-7.ocl'
+   with file.open('a') as out:
+    for n in range(1000):out.write('(sense_body 0 (stamina '+str(n)+' 1 10000))\n')
+   export_dataset(p,{},'m',1,1)
+   row=next(csv.DictReader(io.StringIO((p/'decisions.csv').read_text())))
+   self.assertLess(len(row['ocl_messages_before']),1000)
+   self.assertIn('999',row['ocl_messages_before'])
  def test_option_type_validation(self):
   c={'rounds':1,'games_per_round':1,'synch_mode':True,'left':{'name':'A','directory':'.','command':'./start.sh'},'right':{'name':'B','directory':'.','command':'./start.sh'},'offline_logging':'true'}
   with self.assertRaises(ValueError):validate(c)

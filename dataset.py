@@ -56,14 +56,14 @@ def read_ocl(folder):
     data={};warnings=[];seen=set()
     for side,letter in (('left','l'),('right','r')):
         for path in (folder/'ocl-log'/f'{side}-team').glob('*.ocl'):
-            ident=None;groups=defaultdict(list)
+            ident=None;groups=defaultdict(dict)
             with path.open(encoding='utf-8',errors='replace') as f:
                 for line in f:
                     if line.startswith('(init '):
                         m=re.match(r'\(init ([lr]) (\d+)\s',line)
                         if m:ident=int(m[2])
-                    m=re.match(r'\((?:see|sense_body|hear|fullstate) (\d+)\s',line)
-                    if m:groups[int(m[1])].append(line.rstrip())
+                    m=re.match(r'\((see|sense_body|hear|fullstate) (\d+)\s',line)
+                    if m:groups[int(m[2])][m[1]]=line.rstrip()
             if ident and 1<=ident<=11:
                 key=(letter,ident)
                 if key in seen:warnings.append(f'Duplicate OCL player {side}:{ident}; ambiguous input omitted');data[key]=None
@@ -130,7 +130,7 @@ def export_dataset(folder,config,match_id,round_number,game_number):
                         row['execution_confirmed']=int(b[ix]>a[ix]);row['execution_evidence']='rcg_counter_delta';confirmed+=row['execution_confirmed']
                 inputs=ocl.get((side,n));times=input_cycles.get((side,n),[]);index=bisect.bisect_left(times,cycle)
                 if index:
-                    t=times[index-1];row.update(ocl_available=1,ocl_before_cycle=t,ocl_messages_before=json.dumps(inputs[t],ensure_ascii=False));joined+=1
+                    t=times[index-1];row.update(ocl_available=1,ocl_before_cycle=t,ocl_messages_before=json.dumps(list(inputs[t].values()),ensure_ascii=False));joined+=1
                 horizon=[frames.get(c,[]) for c in range(cycle+1,cycle+51)]
                 valid=all(len(f)==1 and str(f[0]['mode']) in ('play_on','3') for f in horizon[:10]) and str(fr['mode']) in ('play_on','3')
                 if row.get('execution_confirmed')==1 and valid:
