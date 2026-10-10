@@ -15,3 +15,5 @@ __pycache__/
 *.tar.xz
 teams/
 secrets/
+
+worker-settings.json

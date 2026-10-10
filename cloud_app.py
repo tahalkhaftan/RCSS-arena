@@ -13,6 +13,7 @@ from replay import asset_name,encode_replay
 import tempfile,zipfile
 from live import connection_info,valid_token,RELAY,VIEWERS
 import re
+from personal_bridge import BRIDGE,handle_worker,proxy,worker_token
 LOCK=threading.Lock();CACHE={}
 REPLAY_LOCK=threading.Lock();REPLAY_CACHE={}
 
@@ -88,8 +89,13 @@ def state(gh,ident,workflow=None):
 class Handler(BaseHandler):
     def do_GET(self):
         path=urlparse(self.path).path
+        if handle_worker(self):return
         if path in ('/','/index.html','/healthz'):return super().do_GET()
         if not self.auth():return
+        if path=='/api/personal/status':return self.send(200,BRIDGE.status())
+        local_live=re.fullmatch(r'/personal/api/tests/([a-f0-9]{32})/live',path)
+        if local_live:return self.stream_live('personal:'+local_live[1])
+        if path.startswith('/personal/api/'):return proxy(self,path[len('/personal'):])
         try:
             live_match=re.fullmatch(r'/api/tests/(\d+)/live',path)
             if live_match:return self.stream_live(live_match[1])
@@ -181,6 +187,7 @@ class Handler(BaseHandler):
 
     def do_POST(self):
         path=urlparse(self.path).path
+        if handle_worker(self):return
         live_match=re.fullmatch(r'/api/live/(\d+)',path)
         if live_match:
             ident=live_match[1];header=self.headers.get('Authorization','')
@@ -196,6 +203,8 @@ class Handler(BaseHandler):
         origin=self.headers.get('Origin')
         if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.send(403,{'error':'Cross-origin request rejected'})
         path=urlparse(self.path).path
+        if path=='/api/personal/pair':return self.send(200,dict(BRIDGE.status(),token=worker_token()))
+        if path.startswith('/personal/api/'):return proxy(self,path[len('/personal'):])
         try:
             workflow=GitHub();gh=storage_client();gh.require_private();m=re.fullmatch(r'/api/tests/(\d+)/cancel',path)
             if m:

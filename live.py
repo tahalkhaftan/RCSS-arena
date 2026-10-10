@@ -33,7 +33,7 @@ class Relay:
         if not isinstance(frames,list) or not 1<=len(frames)<=12:raise ValueError('Invalid frame batch')
         for f in frames:
             if not isinstance(f,dict):raise ValueError('Invalid frame')
-            if not all(type(f.get(k)) is int and 1<=f[k]<=100 for k in ('round','game')):raise ValueError('Invalid game')
+            if not all(type(f.get(k)) is int and 1<=f[k]<=500 for k in ('round','game')):raise ValueError('Invalid game')
             if not isinstance(f.get('frame'),dict) or not isinstance(f['frame'].get('players'),list) or len(f['frame']['players'])>22:raise ValueError('Invalid frame')
         with self.condition:
             self.counter+=1;now=time.monotonic()
