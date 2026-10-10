@@ -18,6 +18,7 @@ jobs:
       - run: node tests/ui_performance.cjs
       - run: node tests/ui_build.cjs
       - run: node tests/ui_prebuild.cjs
+      - run: node tests/ui_offline.cjs
       - run: node tests/ui_auto_next.cjs
       - run: node tests/ui_smooth_live.cjs
       - run: node tests/ui_live_timeline.cjs

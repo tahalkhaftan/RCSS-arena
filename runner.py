@@ -12,6 +12,8 @@ from analysis import analyze, summary, sexpr
 from performance import analyze_performance
 from team_build import build_team,BuildCancelled
 from replay import show_frame,encode_replay
+from offline_logs import prepare_team
+from dataset import export_dataset
 
 def results_only(value):
     """Copy results without the separate monitor/replay position data."""
@@ -97,6 +99,8 @@ def monitor_snapshot(text, previous=None):
 
 
 def run_match(config,teams,folder,cancel,progress=None,live=None):
+    runtime=None
+    if config.get('offline_logging'):folder=folder/'server-logs'
     folder.mkdir(parents=True); procs=[]; files=[]
     env=os.environ.copy(); env.update(RCSS_HOST='127.0.0.1',RCSS_PORT='6000',RCSS_COACH_PORT='6001',RCSS_OLCOACH_PORT='6002')
     # Dedicated instance: one match uses the standard ports. No public UDP needed.
@@ -114,6 +118,17 @@ def run_match(config,teams,folder,cancel,progress=None,live=None):
     progress_writer=LatestProgress(progress) if progress else None
     if progress_writer:progress=progress_writer.submit
     try:
+        if config.get('offline_logging'):
+            runtime=folder.parent/'.offline-runtime'
+            try:
+                for side in ('left','right'):
+                    prepare_team(teams/side,runtime/side,folder/'ocl-log'/(side+'-team'),env)
+                teams=runtime
+            except Exception:
+                if runtime.exists():shutil.rmtree(runtime)
+                runtime=None
+                # Optional logging must not make an otherwise runnable match fail.
+                (folder/'ocl-warning.txt').write_text('Offline logging setup unavailable; original teams used.',encoding='utf-8')
         def launch_log(name):
             f=open(folder/name,'wb'); files.append(f); return f
         server=subprocess.Popen([os.environ.get('RCSSSERVER','rcssserver')]+[f'server::{k}={v}' for k,v in opts.items()],
@@ -188,6 +203,7 @@ def run_match(config,teams,folder,cancel,progress=None,live=None):
         monitor.close()
         for p in reversed(procs): kill_group(p)
         for f in files: f.close()
+        if runtime and runtime.exists():shutil.rmtree(runtime)
         if progress_writer:progress_writer.close()
 
 def run_job(job,write):
@@ -230,11 +246,15 @@ def run_job(job,write):
                 # Replay generation must never change a match's result.
                 folder=root/'logs'/f'round-{r:03d}-game-{g:03d}'
                 entry['performance']={'schema_version':1,'source':'full_rcg','status':'unavailable','left':None,'right':None}
-                if (folder/'match.rcg').exists():
-                    try:entry['performance']=analyze_performance(folder/'match.rcg')
+                source_folder=folder/'server-logs' if config.get('offline_logging') else folder
+                if config.get('offline_logging'):
+                    try:entry['dataset']=export_dataset(source_folder,config,state.get('id','local'),r,g)
+                    except Exception as exc:entry['dataset']={'status':'failed','warnings':['CSV generation: '+str(exc)]}
+                if (source_folder/'match.rcg').exists():
+                    try:entry['performance']=analyze_performance(source_folder/'match.rcg')
                     except Exception as exc:entry['performance']['error']=str(exc)
                     try:
-                        with (folder/'match.rcg').open(encoding='utf-8') as stream:
+                        with (source_folder/'match.rcg').open(encoding='utf-8') as stream:
                             (folder/'replay.json.gz').write_bytes(encode_replay(stream))
                         entry['replay_available']=True
                     except Exception as exc:entry['replay_error']=str(exc)

@@ -45,7 +45,7 @@ def replay_data(gh,ident,round_number,game_number):
                 temp.seek(0)
                 with zipfile.ZipFile(temp) as z:
                     replay=prefix+'replay.json.gz'
-                    path=replay if replay in z.namelist() else prefix+'match.rcg'
+                    path=next((p for p in (replay,prefix+'match.rcg',prefix+'server-logs/match.rcg') if p in z.namelist()),'')
                     if path not in z.namelist():raise LookupError('این بازی هنوز لاگ قابل نمایش ندارد.')
                     limit=16*1024**2 if path==replay else 128*1024**2
                     if z.getinfo(path).file_size>limit:raise ValueError('Replay log is too large')

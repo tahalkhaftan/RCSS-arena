@@ -95,6 +95,7 @@ def validate(c):
         if type(c.get(key)) is not int or not 1<=c[key]<=500: raise ValueError('Invalid match counts')
     if c['rounds']*c['games_per_round']>500: raise ValueError('Maximum 500 matches')
     if type(c.get('synch_mode')) is not bool: raise ValueError('synch_mode must be boolean')
+    if type(c.get('offline_logging',False)) is not bool: raise ValueError('offline_logging must be boolean')
     for side in ('left','right'):
         t=c.get(side,{})
         mode=t.get('input_mode','binary')

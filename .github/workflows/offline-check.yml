@@ -1,0 +1,51 @@
+name: Verify offline logs and CSV
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/offline-check.yml'
+      - 'offline_logs.py'
+      - 'dataset.py'
+      - 'scripts/verify_offline_logs.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-matches:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install server build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential flex libfl-dev bison libboost-all-dev zlib1g-dev
+      - name: Restore compiled server
+        id: server-cache
+        uses: actions/cache@v4
+        with:
+          path: server-install
+          key: rcss19-ubuntu24-${{ hashFiles('vendor/rcssserver-19.0.0/**') }}
+      - name: Build RCSSServer 19
+        if: steps.server-cache.outputs.cache-hit != 'true'
+        run: |
+          cmake -S vendor/rcssserver-19.0.0 -B server-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/server-install"
+          cmake --build server-build -j4
+          cmake --install server-build
+      - name: Verify real OCL capture and command dataset
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/server-install/lib
+          RCSSSERVER: ${{ github.workspace }}/server-install/bin/rcssserver
+          MATCH_TIMEOUT_SECONDS: '600'
+        run: PYTHONPATH=. python3 scripts/verify_offline_logs.py
+      - name: Retain verification reports and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-log-verification
+          path: |
+            offline-verification/results.json
+            offline-verification/logs/
+          retention-days: 3
