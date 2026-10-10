@@ -114,7 +114,7 @@ def export_dataset(folder,config,match_id,round_number,game_number):
             before=frames.get(cycle,[]);after=frames.get(cycle+1,[])
             names=before[-1]['names'] if before else next((v[0]['names'] for v in frames.values() if team in v[0]['names']),[])
             side='l' if names and names[0]==team else 'r' if len(names)>1 and names[1]==team else None
-            row=dict(schema_version=1,match_id=match_id,round=round_number,game=game_number,server_version='19.0.0',team=team,opponent=names[1 if side=='l' else 0] if side else '',side=side or '',actor_unum=n,cycle=cycle,stopped_cycle=stopped,command_index=i,action_type=action,command=raw,command_arguments=json.dumps(args),execution_evidence='unknown',before_state_valid=0,ocl_available=0,label_valid=0,label_reason='ambiguous or missing state',server_parameters=json.dumps(sp,sort_keys=True),player_types=json.dumps(types,sort_keys=True))
+            row=dict(schema_version=1,match_id=match_id,round=round_number,game=game_number,server_version='19.0.0',team=team,opponent=names[1 if side=='l' else 0] if side else '',side=side or '',actor_unum=n,cycle=cycle,stopped_cycle=stopped,command_index=i,action_type=action,command=raw,command_arguments=json.dumps(args),execution_evidence='unknown',before_state_valid=0,ocl_available=0,label_valid=0,label_reason='ambiguous or missing state',server_parameters=json.dumps(sp,sort_keys=True) if rows==0 else '',player_types=json.dumps(types,sort_keys=True) if rows==0 else '')
             # Repeated/stopped cycles cannot be joined by cycle alone.
             if side and len(before)==1 and stopped==0:
                 fr=before[0];p=fr['players'].get((side,n));row['before_state_valid']=int(p is not None)
@@ -146,5 +146,5 @@ def export_dataset(folder,config,match_id,round_number,game_number):
         count=sum(bool(v) for (s,n),v in ocl.items() if s==letter)
         if count<11:warnings.append(f'{side}: OCL موجود برای {count} از 11 بازیکن؛ دادهٔ مشاهده‌ای بقیه نامعلوم است')
     report={'schema_version':1,'status':'completed','csv':'decisions.csv','rows':rows,'execution_confirmed':confirmed,'ocl_joined_rows':joined,'warnings':warnings}
-    (folder/'dataset-metadata.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+    (folder/'dataset-metadata.json').write_text(json.dumps(dict(report,server_parameters=sp,player_types=types,constant_columns='server_parameters/player_types occur in the first CSV row only'),ensure_ascii=False,indent=2),encoding='utf-8')
     return report
