@@ -26,6 +26,7 @@ jobs:
       - run: node tests/ui_local_rcg.cjs
       - run: python3 -m compileall -q app.py cloud_app.py github_api.py action_job.py runner.py analysis.py
       - name: Verify monitor in desktop and mobile browser layouts
+        timeout-minutes: 3
         run: |
           npm install --prefix "$RUNNER_TEMP/arena-browser" --ignore-scripts --no-package-lock playwright@1.51.1
           NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_monitor.cjs

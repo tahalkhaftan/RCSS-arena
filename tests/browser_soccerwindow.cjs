@@ -1,6 +1,7 @@
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('node:assert/strict');
+let testBrowser;
 (async()=>{
- const browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+ const browser=testBrowser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('http://arena.test/**',async route=>route.fulfill({contentType:route.request().url()==='http://arena.test/'?'text/html':'application/json',body:route.request().url()==='http://arena.test/'?fs.readFileSync('static/index.html','utf8'):'[]'}));
  await page.goto('http://arena.test/');
@@ -28,4 +29,4 @@ const {chromium}=require('playwright'),fs=require('fs'),assert=require('node:ass
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.locator('#swMenus summary').filter({hasText:'Help'}).click();await page.locator('[data-sw-action="shortcuts"]').click();assert.match(await page.locator('#swDialogBody').textContent(),/Ctrl\+G/);await page.keyboard.press('Escape');
  assert.deepEqual(errors,[]);console.log('PASS SoccerWindow menus, metadata, scoped shortcuts, seeking, goals, reverse playback, view controls, dialogs, desktop/mobile');await browser.close();
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().catch(async e=>{console.error(e);await testBrowser?.close();process.exitCode=1;});

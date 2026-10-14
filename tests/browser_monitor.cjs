@@ -1,7 +1,8 @@
 const {chromium}=require('playwright');
 const fs=require('fs'),assert=require('node:assert/strict');
+let testBrowser;
 (async()=>{
- const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',args:['--no-sandbox']});
+ const browser=testBrowser=await chromium.launch({headless:true,executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  let historyRequests=0;
  const state={id:'fixture',status:'running',total:2,config:{rounds:1,games_per_round:2,left:{name:'Blue'},right:{name:'Orange'}},matches:[{round:1,game:1,status:'completed',left_team:'Blue',right_team:'Orange',left_score:2,right_score:1}],progress:{round:1,game:2,cycle:3500,expected_cycles:6000,percent:58.3,left_score:3,right_score:2,frame:{cycle:3500,mode:'3',names:['Blue','Orange'],score:[3,2],ball:[1,2],players:[['l',1,-45,0,0,true],['r',9,20,10,90,false]]}}};
