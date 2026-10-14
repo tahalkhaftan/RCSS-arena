@@ -13,7 +13,7 @@ h=Personal(methodName='test_worker_auth_and_local_catalog_without_github');h.set
 output=Path('personal-verification');output.mkdir(exist_ok=True)
 try:
     os.environ['MATCH_TIMEOUT_SECONDS']='600'
-    config={'rounds':1,'games_per_round':1,'synch_mode':True,
+    config={'rounds':1,'games_per_round':1,'synch_mode':True,'debug_logging':True,
             'left':{'name':'AITech-2D','directory':'.','command':'./localStartAll','preset_id':'AITech-2D'},
             'right':{'name':'CYRUS','directory':'.','command':'./localStartAll','preset_id':'CYRUS'}}
     def local_run(job,write):
@@ -49,9 +49,14 @@ try:
         assert state['execution']=='personal'
         logs=h.request('/personal/api/tests/'+ident+'/logs.zip')
         with zipfile.ZipFile(io.BytesIO(logs)) as z:
-            assert z.read('logs/round-001-game-001/match.rcg')
-            assert z.read('logs/round-001-game-001/match.rcl')
-        assert h.request('/personal/api/tests/'+ident+'/replay/1/1')
+            assert z.read('logs/round-001-game-001/server-logs/match.rcg')
+            assert z.read('logs/round-001-game-001/server-logs/match.rcl')
+            debug_names=[n for n in z.namelist() if '/debug-log/' in n and n.endswith(('.log','.dcl'))]
+            assert debug_names,'No native debug logs emitted'
+            assert state['matches'][0]['debug_logging']['status']=='available'
+        import gzip
+        replay=json.loads(gzip.decompress(h.request('/personal/api/tests/'+ident+'/replay/1/1')))
+        assert replay.get('debug_records',0)>0,'Native debug records absent from replay'
         (output/'results.json').write_text(json.dumps(state,ensure_ascii=False,indent=2))
         h.wait_for_cleanup()
         print('PASS: real complete match on worker, site live frames, simultaneous local UDP monitor, replay, local storage and streamed ZIP without GitHub storage',flush=True)

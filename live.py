@@ -26,7 +26,7 @@ def connection_info(ident):
 
 
 class Relay:
-    def __init__(self):self.condition=threading.Condition();self.events={};self.counter=0
+    def __init__(self):self.condition=threading.Condition();self.events={};self.history={};self.counter=0
     def publish(self,ident,payload):
         if not isinstance(payload,dict):raise ValueError('Invalid payload')
         frames=payload.get('frames')
@@ -38,14 +38,20 @@ class Relay:
         with self.condition:
             self.counter+=1;now=time.monotonic()
             for key in list(self.events):
-                if now-self.events[key][2]>600:del self.events[key]
-            if ident not in self.events and len(self.events)>=16:self.events.pop(next(iter(self.events)))
+                if now-self.events[key][2]>600:del self.events[key];self.history.pop(key,None)
+            if ident not in self.events and len(self.events)>=16:self.history.pop(next(iter(self.events)),None);self.events.pop(next(iter(self.events)))
+            if ident not in self.events:self.history[ident]=collections.deque(maxlen=24)
+            self.history.setdefault(ident,collections.deque(maxlen=24)).append((self.counter,payload,now))
             self.events[ident]=(self.counter,payload,now);self.condition.notify_all()
     def wait(self,ident,sequence,timeout=10):
         with self.condition:
             self.condition.wait_for(lambda:ident in self.events and self.events[ident][0]!=sequence and time.monotonic()-self.events[ident][2]<15,timeout)
             entry=self.events.get(ident)
-            if entry and time.monotonic()-entry[2]<15 and entry[0]!=sequence:return entry[:2]
+            if entry and time.monotonic()-entry[2]<15 and entry[0]!=sequence:
+                if sequence:
+                    pending=next((e for e in self.history.get(ident,[]) if e[0]>sequence and time.monotonic()-e[2]<15),None)
+                    if pending:return pending[:2]
+                return entry[:2]
             return sequence,None
 
 

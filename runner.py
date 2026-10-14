@@ -1,5 +1,6 @@
 """Sequential runner for trusted teams on one dedicated RCSS Arena instance."""
 import os
+import json
 import re
 import signal
 import shutil
@@ -104,8 +105,8 @@ def monitor_snapshot(text, previous=None):
 
 
 def run_match(config,teams,folder,cancel,progress=None,live=None):
-    runtime=None
-    if config.get('offline_logging'):folder=folder/'server-logs'
+    runtime=None;debug_tail=None
+    if config.get('offline_logging') or config.get('debug_logging'):folder=folder/'server-logs'
     folder.mkdir(parents=True); procs=[]; files=[]
     env=os.environ.copy(); env.update(RCSS_HOST='127.0.0.1',RCSS_PORT='6000',RCSS_COACH_PORT='6001',RCSS_OLCOACH_PORT='6002')
     # Dedicated instance: one match uses the standard ports. No public UDP needed.
@@ -123,17 +124,22 @@ def run_match(config,teams,folder,cancel,progress=None,live=None):
     progress_writer=LatestProgress(progress) if progress else None
     if progress_writer:progress=progress_writer.submit
     try:
-        if config.get('offline_logging'):
+        if config.get('offline_logging') or config.get('debug_logging'):
             runtime=folder.parent/'.offline-runtime'
             try:
                 for side in ('left','right'):
-                    prepare_team(teams/side,runtime/side,folder/'ocl-log'/(side+'-team'),env)
+                    log_sub='ocl-log' if config.get('offline_logging') else 'debug-log'
+                    info=prepare_team(teams/side,runtime/side,folder/log_sub/(side+'-team'),env,offline=config.get('offline_logging',False),debug=config.get('debug_logging',False))
+                    if config.get('debug_logging'):(folder/('debug-support-'+side+'.json')).write_text(json.dumps(info))
                 teams=runtime
             except Exception:
                 if runtime.exists():shutil.rmtree(runtime)
                 runtime=None
                 # Optional logging must not make an otherwise runnable match fail.
-                (folder/'ocl-warning.txt').write_text('Offline logging setup unavailable; original teams used.',encoding='utf-8')
+                (folder/'logging-warning.txt').write_text('Optional offline/debug logging setup unavailable; original teams used.',encoding='utf-8')
+        if config.get('debug_logging'):
+            from debug_logs import DebugTail
+            debug_tail=DebugTail(folder)
         def launch_log(name):
             f=open(folder/name,'wb'); files.append(f); return f
         server=subprocess.Popen([os.environ.get('RCSSSERVER','rcssserver')]+[f'server::{k}={v}' for k,v in opts.items()],
@@ -150,7 +156,11 @@ def run_match(config,teams,folder,cancel,progress=None,live=None):
             except (ValueError,IndexError,TypeError): return
             now=time.monotonic()
             if live and text.startswith('(show ') and now-live_published>=.1:
-                try:live(snapshot['frame'])
+                try:
+                    frame=snapshot['frame']
+                    if debug_tail:
+                        frame=dict(frame,debug=debug_tail.frame(frame['cycle']));snapshot['frame']=frame
+                    live(frame)
                 except Exception:pass
                 live_published=now
             if progress and (force or now-published>=10):
@@ -207,6 +217,11 @@ def run_match(config,teams,folder,cancel,progress=None,live=None):
     finally:
         monitor.close()
         for p in reversed(procs): kill_group(p)
+        if debug_tail:debug_tail.close()
+        if config.get('debug_logging') and config.get('offline_logging'):
+            for log in (folder/'ocl-log').rglob('*'):
+                if log.is_file() and log.suffix in ('.log','.dcl'):
+                    target=folder/'debug-log'/log.relative_to(folder/'ocl-log');target.parent.mkdir(parents=True,exist_ok=True);shutil.move(log,target)
         for f in files: f.close()
         if runtime and runtime.exists():shutil.rmtree(runtime)
         if progress_writer:progress_writer.close()
@@ -251,7 +266,10 @@ def run_job(job,write):
                 # Replay generation must never change a match's result.
                 folder=root/'logs'/f'round-{r:03d}-game-{g:03d}'
                 entry['performance']={'schema_version':1,'source':'full_rcg','status':'unavailable','left':None,'right':None}
-                source_folder=folder/'server-logs' if config.get('offline_logging') else folder
+                source_folder=folder/'server-logs' if config.get('offline_logging') or config.get('debug_logging') else folder
+                if config.get('debug_logging'):
+                    debug_files=list((source_folder/'debug-log').rglob('*.log'))+list((source_folder/'debug-log').rglob('*.dcl'))
+                    entry['debug_logging']={'status':'available' if any(p.stat().st_size for p in debug_files) else 'no_records','files':len(debug_files),'note':'Only records emitted by supported clients are available.'}
                 if config.get('offline_logging'):
                     try:entry['dataset']=export_dataset(source_folder,config,state.get('id','local'),r,g)
                     except Exception as exc:entry['dataset']={'status':'failed','warnings':['CSV generation: '+str(exc)]}
@@ -260,7 +278,7 @@ def run_job(job,write):
                     except Exception as exc:entry['performance']['error']=str(exc)
                     try:
                         with (source_folder/'match.rcg').open(encoding='utf-8') as stream:
-                            (folder/'replay.json.gz').write_bytes(encode_replay(stream))
+                            (folder/'replay.json.gz').write_bytes(encode_replay(stream,debug_root=source_folder if config.get('debug_logging') else None))
                         entry['replay_available']=True
                     except Exception as exc:entry['replay_error']=str(exc)
                 state.pop('progress',None)

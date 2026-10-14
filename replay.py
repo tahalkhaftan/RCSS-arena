@@ -86,8 +86,12 @@ def parse_replay(stream):
     return {'version':1,'step_ms':step_ms,'frames':frames,'final_score':context.get('score',[0,0]),'team_names':context.get('names',['Left','Right'])}
 
 
-def encode_replay(stream):
-    return gzip.compress(json.dumps(parse_replay(stream),ensure_ascii=False,separators=(',',':'),allow_nan=False).encode(),mtime=0)
+def encode_replay(stream,debug_root=None):
+    data=parse_replay(stream)
+    if debug_root is not None:
+        from debug_logs import attach_replay
+        data=attach_replay(data,debug_root)
+    return gzip.compress(json.dumps(data,ensure_ascii=False,separators=(',',':'),allow_nan=False).encode(),mtime=0)
 
 
 def asset_name(round_number,game_number):

@@ -3,7 +3,7 @@ import io,json,os,time,uuid,threading,urllib.error
 from email.parser import BytesParser
 from email.policy import default
 from http.server import ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse,parse_qs
 from app import Handler as BaseHandler,validate
 from github_api import GitHub,storage_client,is_arena_release
 from pathlib import Path
@@ -177,10 +177,12 @@ class Handler(BaseHandler):
             self.send_header('Cache-Control','no-cache, no-transform')
             self.send_header('X-Accel-Buffering','no')
             self.end_headers();self.wfile.write(b'retry: 1000\n\n');self.wfile.flush()
-            sequence=0;deadline=time.monotonic()+120
+            try:sequence=max(0,int(self.headers.get('Last-Event-ID') or parse_qs(urlparse(self.path).query).get('after',['0'])[0]))
+            except ValueError:sequence=0
+            deadline=time.monotonic()+120
             while time.monotonic()<deadline:
                 sequence,payload=RELAY.wait(ident,sequence)
-                message=('data: '+json.dumps(payload,separators=(',',':'))+'\n\n').encode() if payload else b': keepalive\n\n'
+                message=('data: '+json.dumps(payload,separators=(',',':'))+'\nid: '+str(sequence)+'\n\n').encode() if payload else b': keepalive\n\n'
                 self.wfile.write(message);self.wfile.flush()
         except (OSError,TimeoutError):pass
         finally:VIEWERS.release();self.close_connection=True

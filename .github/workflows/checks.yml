@@ -19,6 +19,7 @@ jobs:
       - run: node tests/ui_build.cjs
       - run: node tests/ui_prebuild.cjs
       - run: node tests/ui_offline.cjs
+      - run: node tests/ui_workbench.cjs
       - run: node tests/ui_personal.cjs
       - run: node tests/ui_auto_next.cjs
       - run: node tests/ui_smooth_live.cjs
@@ -31,12 +32,15 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/arena-browser" --ignore-scripts --no-package-lock playwright@1.51.1
           NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_monitor.cjs
           CHROME_BIN=/usr/bin/google-chrome NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_soccerwindow.cjs
+          CHROME_BIN=/usr/bin/google-chrome NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_workbench.cjs
       - name: Retain monitor screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: monitor-layouts
           path: |
+            /tmp/workbench-desktop.png
+            /tmp/workbench-mobile.png
             /tmp/soccerwindow-desktop.png
             /tmp/soccerwindow-mobile.png
             /tmp/arena-monitor-desktop.png
