@@ -72,7 +72,11 @@ class LivePublisher:
                 batch=[f for f in self.queue if time.time()-f['captured_at']<1.5];self.queue.clear()
             if not batch:continue
             try:
-                req=urllib.request.Request(self.connection['url'],data=json.dumps({'frames':batch},allow_nan=False,separators=(',',':')).encode(),headers={'Authorization':'Bearer '+self.connection['token'],'Content-Type':'application/json'},method='POST')
+                body=json.dumps({'frames':batch},allow_nan=False,separators=(',',':')).encode()
+                while len(body)>65536 and len(batch)>1:
+                    batch.pop(0);body=json.dumps({'frames':batch},allow_nan=False,separators=(',',':')).encode()
+                if len(body)>65536:continue
+                req=urllib.request.Request(self.connection['url'],data=body,headers={'Authorization':'Bearer '+self.connection['token'],'Content-Type':'application/json'},method='POST')
                 with self.opener.open(req,timeout=2) as response:response.read(1024)
             except Exception:
                 # Drop obsolete frames and retry later. Results/logs remain authoritative.

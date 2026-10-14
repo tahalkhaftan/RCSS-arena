@@ -64,7 +64,9 @@ class PersonalLive:
         while not self.stop.wait(.15):
             with self.lock:batch=list(self.queue);self.queue.clear()
             if batch:
-                try:self.client.json('live',{'id':self.ident,'frames':batch})
+                try:
+                    while len(json.dumps({'id':self.ident,'frames':batch}).encode())>65536 and len(batch)>1:batch.pop(0)
+                    self.client.json('live',{'id':self.ident,'frames':batch})
                 except Exception:pass
     def close(self):self.stop.set()
 

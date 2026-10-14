@@ -11,6 +11,11 @@ def number(value):
     return round(result,3)
 
 
+MONITOR_PARAMETERS=('player_size','ball_size','kickable_margin','stamina_max','catchable_area_l','catchable_area_w','tackle_dist','tackle_back_dist','tackle_width','visible_distance','pitch_length','pitch_width')
+
+def monitor_parameters(parameters):
+    return {k:v for k,v in (parameters or {}).items() if k in MONITOR_PARAMETERS}
+
 def show_frame(record, previous=None, parameters=None, player_types=None):
     prev=previous or {}
     frame={'cycle':int(record[1]),'ball':None,'players':[],
@@ -35,12 +40,25 @@ def show_frame(record, previous=None, parameters=None, player_types=None):
                     stamina=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='s'),None)
                     if stamina is not None:player.append(number(stamina[1]))
                     frame['players'].append(player)
+                    meta={'type':int(item[1]),'state':state}
+                    if len(item)>6:meta['velocity']=[number(item[5]),number(item[6])]
+                    if len(item)>8 and not isinstance(item[8],list):meta['neck']=number(item[8])
+                    if len(item)>10 and not isinstance(item[9],list) and not isinstance(item[10],list):meta['pointto']=[number(item[9]),number(item[10])]
+                    for part in item:
+                        if not isinstance(part,list) or not part:continue
+                        if part[0]=='v' and len(part)>2:meta.update(view_quality=part[1],view_width=number(part[2]))
+                        elif part[0]=='s' and len(part)>3:meta.update(effort=number(part[2]),recovery=number(part[3]))
+                        elif part[0]=='f' and len(part)>2:meta['attention']=[part[1],int(part[2])]
+                        elif part[0]=='c':meta['counters']=[int(v) for v in part[1:]]
+                    frame.setdefault('player_meta',{})[ident]=meta
                     if parameters is not None:
                         pt=(player_types or {}).get(int(item[1]),{})
                         radius=pt.get('player_size',parameters.get('player_size',.3))+pt.get('kickable_margin',parameters.get('kickable_margin',.7))+parameters.get('ball_size',.085)
                         if math.isfinite(radius) and radius>0:frame.setdefault('control_radii',{})[ident]=radius
                     counters=next((part for part in item if isinstance(part,list) and len(part)>1 and part[0]=='c'),None)
                     if counters is not None:frame.setdefault('kicks',{})[f'{player[0]}:{player[1]}']=int(counters[1])
+    if parameters:frame['parameters']=monitor_parameters(parameters)
+    if player_types:frame['player_types']={k:{n:v for n,v in pt.items() if n in ('player_size','kickable_margin','player_speed_max','player_decay','dash_power_rate','effort_max','effort_min')} for k,pt in player_types.items()}
     return frame
 
 

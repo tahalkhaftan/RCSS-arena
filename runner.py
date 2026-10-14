@@ -11,14 +11,14 @@ from pathlib import Path
 from analysis import analyze, summary, sexpr
 from performance import analyze_performance
 from team_build import build_team,BuildCancelled
-from replay import show_frame,encode_replay
+from replay import show_frame,encode_replay,monitor_parameters
 from offline_logs import prepare_team
 from dataset import export_dataset
 
 def results_only(value):
     """Copy results without the separate monitor/replay position data."""
     if isinstance(value,dict):
-        return {k:results_only(v) for k,v in value.items() if k not in ('frame','frames','players','ball')}
+        return {k:results_only(v) for k,v in value.items() if k not in ('frame','frames','players','ball','monitor_parameters','monitor_types')}
     if isinstance(value,list):return [results_only(v) for v in value]
     return value
 
@@ -73,14 +73,19 @@ def start_team(team,root,log,procs,env):
 def monitor_snapshot(text, previous=None):
     """Read only structured state records; graphical/message records are irrelevant."""
     snapshot=dict(previous or {})
-    if not text.startswith(('(show ', '(team ', '(playmode ')): return snapshot
+    if not text.startswith(('(show ', '(team ', '(playmode ', '(server_param ', '(player_type ')): return snapshot
     rec=sexpr(text)
-    if rec[0]=='team':
+    if rec[0]=='server_param':
+        snapshot['monitor_parameters']=monitor_parameters({p[0]:float(p[1]) for p in rec[1:] if isinstance(p,list) and len(p)==2 and p[0] in ('player_size','ball_size','kickable_margin','stamina_max','catchable_area_l','catchable_area_w','tackle_dist','tackle_back_dist','tackle_width','visible_distance')})
+    elif rec[0]=='player_type':
+        pt={p[0]:float(p[1]) for p in rec[1:] if isinstance(p,list) and len(p)==2}
+        snapshot['monitor_types']=dict(snapshot.get('monitor_types',{}),**{str(int(pt['id'])):pt})
+    elif rec[0]=='team':
         snapshot.update(server_team_names=rec[2:4],left_score=int(rec[4]),right_score=int(rec[5]))
     elif rec[0]=='playmode': snapshot['playmode']=rec[2]
     else:
         snapshot['cycle']=int(rec[1])
-        snapshot['frame']=show_frame(rec,{'names':snapshot.get('server_team_names',['Left','Right']),'score':[snapshot.get('left_score',0),snapshot.get('right_score',0)],'mode':snapshot.get('playmode','before_kick_off')})
+        snapshot['frame']=show_frame(rec,{'names':snapshot.get('server_team_names',['Left','Right']),'score':[snapshot.get('left_score',0),snapshot.get('right_score',0)],'mode':snapshot.get('playmode','before_kick_off')},snapshot.get('monitor_parameters'),{int(k):v for k,v in snapshot.get('monitor_types',{}).items()})
         counts={'l':0,'r':0}
         for item in rec[2:]:
             if not isinstance(item,list) or not item: continue

@@ -46,6 +46,26 @@
 .performance{margin-top:24px}.performance-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,1.25fr) minmax(0,1fr);gap:10px;align-items:center;direction:ltr}.performance-name{font-weight:bold;font-size:18px;overflow-wrap:anywhere;padding:10px 4px;text-align:center}.performance-left{color:var(--blue)}.performance-right{color:#d98935}.performance-label{direction:rtl;text-align:center;color:var(--muted);font-size:13px}.performance-value{border:1px solid var(--line);background:var(--bg);border-radius:12px;text-align:center;font:700 24px Arial;padding:13px 6px}.performance-value.left{color:var(--blue);border-left:3px solid var(--blue)}.performance-value.right{color:#d98935;border-right:3px solid #d98935}@media(max-width:500px){.performance-grid{gap:8px;grid-template-columns:minmax(0,1fr) minmax(95px,1.3fr) minmax(0,1fr)}.performance-name{font-size:14px}.performance-label{font-size:11px}.performance-value{font-size:21px}}
 .performance-heading,.match-stat-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,1.5fr) minmax(0,1fr);align-items:center;gap:10px;direction:ltr}.performance-heading{padding-bottom:15px;border-bottom:1px solid var(--line)}.match-stat-row{padding:12px 4px;border-bottom:1px solid var(--line)}.match-stat-label{text-align:center;font-size:13px;color:var(--muted)}.match-stat-label small{color:var(--muted);font-size:12px}.stat-number{text-align:center;font:700 22px Arial}.stat-number-left{color:var(--blue)}.stat-number-right{color:#d98935}.match-stat-bar{grid-column:1/-1;display:flex;height:5px;border-radius:10px;overflow:hidden;direction:ltr;margin:0 8px}.match-stat-bar span:first-child{width:var(--left-share,50%);background:var(--blue)}.match-stat-bar span:last-child{flex:1;background:#d98935}.match-stat-bar[hidden]{display:none}.performance-details{margin-top:18px}.performance-details summary{cursor:pointer;color:var(--muted);font-size:13px}.performance-name{margin:0}@media(max-width:500px){.performance-heading,.match-stat-row{grid-template-columns:minmax(0,1fr) minmax(125px,1.5fr) minmax(0,1fr);gap:6px}.stat-number{font-size:19px}.match-stat-label{font-size:12px}}
 .source-build-action{display:flex;justify-content:center;margin-top:20px}:root .source-build-action .source-build-button{background:#ffe266;color:#473500;border-color:#e9c641;min-width:135px;font-weight:bold}:root .source-build-action .source-build-button[data-status="completed"]{background:#4bddac;color:#043c2b;border-color:#22b884}:root .source-build-action .source-build-button[data-status="failed"]{background:#ff7777;color:#4a0e0e;border-color:#dc4848}.source-build-progress{text-align:center}.source-build-errors{margin-top:12px}.source-build-errors summary{cursor:pointer;color:var(--red)}.source-build-errors pre{max-height:350px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}
+
+#matchMonitor [hidden]{display:none!important}
+#matchMonitor.sw-windows .sw-title{background:#0078d4;color:white}#matchMonitor.sw-windows .sw-title button{color:white}#matchMonitor.sw-windows .sw-toolbar,#matchMonitor.sw-windows .sw-menubar{background:#f0f0f0}
+/* SoccerWindow2 desktop workspace. Independent of the Arena page theme. */
+#matchMonitor.sw-window{padding:0;border:1px solid #7e7e7e;border-radius:4px;background:#efefef;color:#151515;box-shadow:0 8px 24px #0003;overflow:visible;color-scheme:light}
+.sw-title{background:linear-gradient(#fbfbfb,#ddd);padding:5px 10px;display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #aaa;font:12px/1.6 Arial;direction:ltr;border-radius:3px 3px 0 0}
+.sw-title button{border:0;background:transparent;color:#222;padding:0 7px}
+.sw-menubar{display:flex;flex-wrap:wrap;position:relative;z-index:8;background:#efefef;border-bottom:1px solid #b5b5b5;direction:ltr;font:13px/1.5 Arial}
+.sw-menu{position:relative}.sw-menu>summary{list-style:none;padding:5px 10px;cursor:pointer}.sw-menu>summary::-webkit-details-marker{display:none}.sw-menu[open]>summary,.sw-menu>summary:hover{background:#bdd8f5}
+.sw-popup{position:absolute;left:0;top:100%;background:#f6f6f6;border:1px solid #888;box-shadow:3px 4px 8px #0004;min-width:260px;max-width:min(90vw,390px);max-height:65vh;overflow:auto;padding:3px;z-index:10;color:#111}
+.sw-menu:last-child .sw-popup{left:auto;right:0}.sw-popup button{display:grid;grid-template-columns:18px 1fr auto;gap:6px;width:100%;border:0;background:transparent;color:inherit;padding:5px 9px;white-space:nowrap;text-align:left;font:12px/1.5 Arial;align-items:center;border-radius:0}.sw-popup button:hover:not(:disabled),.sw-popup button:focus-visible{background:#bdd8f5;outline:1px solid #76a9dc}.sw-popup kbd{color:#666;font:11px Arial}.sw-popup hr{margin:4px;border:0;border-top:1px solid #ccc}.sw-popup .sw-subtitle{padding:3px 10px;color:#666;font-size:11px;background:#e5e5e5}.sw-popup button:disabled{opacity:.5}
+.sw-toolbar{display:flex;gap:2px;align-items:center;flex-wrap:wrap;direction:ltr;background:#e7e7e7;border-bottom:1px solid #aaa;padding:4px 6px}.sw-tool{border:1px solid transparent;border-radius:2px;background:transparent;color:#202020;width:30px;height:29px;font:17px Arial;padding:2px;display:inline-flex;align-items:center;justify-content:center}.sw-tool:hover,.sw-tool[aria-pressed=true]{background:#d2e5f8;border-color:#7baddb}.sw-divider{height:23px;border-left:1px solid #aaa;margin:0 4px}.sw-toolbar input{width:76px!important;margin:0!important;padding:3px 5px!important;border:1px solid #aaa!important;border-radius:2px!important;background:white!important;color:black!important;font:12px Arial}.sw-toolbar label{font:11px Arial;color:#333;margin-left:5px}
+.sw-content{padding:10px 14px;min-width:0}.sw-content .result-head{margin-bottom:8px}.sw-content h2{font-size:14px;color:#222}.sw-content .foot{color:#555;font-size:11px}.sw-content .badge{background:#f6f6f6;color:#222;border-color:#bbb;padding:3px 8px}
+#matchMonitor.sw-window .btn{background:linear-gradient(#fff,#e2e2e2);color:#222;border:1px solid #aaa;border-radius:3px;padding:5px 10px;font-size:12px}#matchMonitor.sw-window select,#matchMonitor.sw-window input:not([type=range]):not([type=checkbox]):not([type=file]){background:#fff;color:#222;border:1px solid #999;border-radius:2px;padding:5px 8px}#matchMonitor.sw-window label.field{color:#333}#matchMonitor.sw-window .monitor-toolbar select,#matchMonitor.sw-window #monitorLoad{height:32px}#matchMonitor.sw-window .team-picker select{color:transparent}#matchMonitor.sw-window .team-picker option{color:#222;background:#fff}#matchMonitor.sw-window .team-picker>span{color:#222}
+#matchMonitor.sw-window canvas{border:1px solid #777;border-radius:0;touch-action:none;cursor:crosshair}#matchMonitor.sw-window .upload{background:white;border-color:#aaa;border-radius:3px;padding:8px}#matchMonitor.sw-window .upload small{color:#555}#matchMonitor.sw-window .monitor-score{background:white;border:1px solid #bbb;padding:6px 10px;margin:8px 0;grid-template-columns:minmax(0,1fr) 100px minmax(0,1fr)}#matchMonitor.sw-window .cycle-box{border-radius:0;background:#f5f5f5;color:#333;border-color:#aaa;padding:3px}#matchMonitor.sw-window .score-team span{color:#222;font:13px Arial}#matchMonitor.sw-window .score-left strong{color:#b38e00}#matchMonitor.sw-window .score-right strong{color:#dc1414}#matchMonitor.sw-window .monitor-controls{margin-top:6px;gap:10px}#matchMonitor.sw-window .monitor-ratings{margin-top:6px}#matchMonitor.sw-window .team-rating{border-radius:3px;padding:3px 7px}#matchMonitor.sw-window .live-timeline{margin:6px 0}#matchMonitor.sw-window .live-timeline input{accent-color:#6a9ccc}
+.sw-statusbar{display:flex;gap:12px;justify-content:space-between;padding:4px 10px;background:#e6e6e6;border-top:1px solid #aaa;direction:ltr;font:11px/1.5 Arial;min-height:25px;flex-wrap:wrap}.sw-statusbar span{overflow-wrap:anywhere}
+.sw-dialog{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:#0005;padding:20px}.sw-dialog[hidden]{display:none}.sw-dialog-box{background:#efefef;border:1px solid #777;border-radius:3px;box-shadow:0 8px 30px #0005;color:#222;width:min(650px,100%);max-height:85vh;overflow:auto;direction:ltr;font:13px/1.6 Arial}.sw-dialog-head{display:flex;justify-content:space-between;position:sticky;top:0;background:linear-gradient(#fff,#ddd);padding:7px 12px;border-bottom:1px solid #aaa;z-index:1}.sw-dialog-head button{background:transparent;border:0;color:#222}.sw-dialog-body{padding:14px}.sw-dialog-body table{width:100%;border-collapse:collapse;font-size:12px}.sw-dialog-body th,.sw-dialog-body td{border:1px solid #bbb;padding:5px;text-align:left;overflow-wrap:anywhere}.sw-dialog-body input,.sw-dialog-body select{background:#fff!important;color:#222!important;border:1px solid #999!important;padding:5px!important;border-radius:2px!important}.sw-dialog-body label{display:block;margin:6px 0}.sw-dialog-body p{color:#444}.sw-dialog-body button{background:#e3e3e3;border:1px solid #999;padding:5px 10px;color:#222;margin:4px}.sw-dialog-body pre{background:#fff;color:#222;border-radius:2px;font-size:11px}
+#matchMonitor.sw-window:fullscreen{width:100vw;height:100vh;overflow:auto;border:0}.sw-compact .sw-content .result-head,.sw-compact #monitorConcurrent,.sw-compact .monitor-ratings{display:none}.sw-compact .sw-content{padding:5px}.sw-compact canvas{max-height:calc(100vh - 200px);object-fit:contain}
+@media(max-width:700px){.sw-menu>summary{padding:5px 7px;font-size:12px}.sw-content{padding:8px}.sw-popup{position:fixed;left:5vw!important;right:auto!important;top:auto;width:90vw}.sw-title{font-size:11px}.sw-toolbar{gap:1px}.sw-content .monitor-toolbar{gap:6px}.sw-content .monitor-score{grid-template-columns:minmax(0,1fr) 65px minmax(0,1fr)!important}.sw-dialog{padding:8px}}
+
 </style>
 </head>
 <body><div class="goal-toast" id="goalToast" role="status" aria-live="polite" aria-atomic="true"><strong id="goalToastTitle"></strong><span id="goalToastScore" dir="ltr"></span></div><main>
@@ -62,7 +82,8 @@
 <section class="card status"><div class="buttons"><button class="btn" id="recent">بازیابی آخرین تست</button></div><p class="foot">بعد از بستن صفحه، برای دیدن نتیجهٔ تست قبلی از این دکمه استفاده کن.</p></section>
 <section class="card status" aria-live="polite"><div class="statusline"><span id="status">آمادهٔ شروع</span><span id="counter">0 / 5</span></div><div class="track" role="progressbar" aria-label="پیشرفت تست" aria-valuemin="0" aria-valuemax="500" aria-valuenow="0"><div class="bar" id="bar"></div></div><p class="foot" id="liveProgress">پیشرفت مسابقه پس از اتصال تیم‌ها نمایش داده می‌شود.</p><div id="error" role="alert"></div></section>
 <section class="card hidden" id="buildErrors" style="margin-top:20px"><h2>خطای بیلد</h2><details id="leftBuildError" class="hidden"><summary>ارور تیم چپ ▾</summary><p class="foot" id="leftBuildMessage"></p><button type="button" class="btn" id="leftBuildRetry">دریافت دوبارهٔ خروجی کامل</button><pre id="leftBuildLog" aria-label="خروجی کامل ترمینال بیلد تیم چپ"></pre></details><details id="rightBuildError" class="hidden"><summary>ارور تیم راست ▾</summary><p class="foot" id="rightBuildMessage"></p><button type="button" class="btn" id="rightBuildRetry">دریافت دوبارهٔ خروجی کامل</button><pre id="rightBuildLog" aria-label="خروجی کامل ترمینال بیلد تیم راست"></pre></details></section>
-<section class="card monitor" id="matchMonitor" aria-label="مانیتور مسابقه">
+<section class="card monitor" id="matchMonitor" tabindex="0" aria-label="مانیتور مسابقه">
+<div class="sw-title"><span>◉ soccerwindow2 — RCSS Arena Web</span><button type="button" id="swFullscreen" title="Full Screen (F11)">□</button></div><nav class="sw-menubar" id="swMenus" aria-label="SoccerWindow2 menus"></nav><div class="sw-toolbar" id="swMainTools" role="toolbar" aria-label="Monitor tools"></div><div class="sw-toolbar" id="swPlayTools" role="toolbar" aria-label="LogPlayer tools"></div><div class="sw-content">
 <div class="result-head"><div><div class="team-name-row"><span class="team-picker"><select id="monitorSource" aria-label="منبع مانیتور" title="منبع مانیتور"><option value="server">اتصال به سرور</option><option value="file">خواندن فایل RCG</option></select><span aria-hidden="true">▾</span></span><h2>مانیتور مسابقه</h2></div><p class="foot">پخش مستقیم موقعیت توپ و بازیکن‌ها ممکن است با تأخیر همراه باشد؛ در قطع ارتباط، گزارش دوره‌ای و بازپخش در دسترس می‌مانند.</p></div><span class="badge" id="monitorBadge">منتظر انتخاب تست</span></div>
 <div id="monitorFilePanel" class="hidden"><label class="upload"><strong>انتخاب فایل RCG برای بازپخش</strong><small>فایل متنی ULG4، ULG5 یا ULG6؛ فایل فقط در مرورگر خوانده می‌شود و به سرور ارسال نمی‌شود.</small><input id="monitorFile" type="file" accept=".rcg"></label></div>
 <div id="monitorServerPanel"><div class="monitor-toolbar"><label class="field">انتخاب دور و بازی<select id="monitorMatch"><option value="">هنوز بازی‌ای ثبت نشده</option></select></label><div class="monitor-mode-group"><label class="field">حالت نمایش<select id="monitorMode"><option value="live">نمایش زنده</option><option value="replay">بازپخش بازی انتخاب‌شده</option></select></label><label class="foot" style="display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:0;cursor:pointer"><input type="checkbox" id="monitorAutoNext" style="width:auto;margin:0;accent-color:var(--green)">رفتن خودکار به بازی بعدی</label></div><button class="btn" type="button" id="monitorLoad">دریافت بازپخش</button></div></div>
@@ -73,7 +94,9 @@
 <div class="live-timeline"><span class="live-trail" id="monitorLiveTrail" hidden></span><span class="live-edge" id="monitorLiveEdge" hidden title="آخرین لحظهٔ دریافت‌شده"></span><input type="range" id="monitorSeek" min="0" max="0" value="0" disabled aria-label="خط زمان مسابقه"></div>
 <p class="foot" id="monitorConcurrent" aria-live="polite"></p>
 <p class="foot" id="monitorInfo" aria-live="polite">پس از شروع یا بازیابی تست، بازی را از فهرست انتخاب کن.</p>
+</div><div class="sw-statusbar" id="swStatus"><span id="swStatusMode">Ready</span><span id="swStatusPlayer">No player selected</span><span id="swStatusXY">(0.0, 0.0)</span></div>
 </section>
+<div class="sw-dialog" id="swDialog" hidden role="dialog" aria-modal="true" aria-labelledby="swDialogTitle"><div class="sw-dialog-box"><div class="sw-dialog-head"><strong id="swDialogTitle"></strong><button type="button" id="swDialogClose" aria-label="Close">✕</button></div><div class="sw-dialog-body" id="swDialogBody"></div></div></div>
 
 <section class="card performance" aria-label="عملکرد تیم‌ها"><div class="result-head"><h2>عملکرد تیم‌ها</h2><span class="badge" id="performanceStatus">منتظر دادهٔ بازی</span></div><div class="performance-heading" dir="ltr"><div class="performance-name performance-left" id="performanceLeft">—</div><span class="match-stat-label">آمار بازی</span><div class="performance-name performance-right" id="performanceRight">—</div></div><div class="match-stats"><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_goals_0">—</strong><span class="match-stat-label" dir="rtl">گل </span><strong class="stat-number stat-number-right" id="performance_goals_1">—</strong><div class="match-stat-bar" id="performance_bar_goals" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_possession_0">—</strong><span class="match-stat-label" dir="rtl">مالکیت توپ <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_possession_1">—</strong><div class="match-stat-bar" id="performance_bar_possession" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shots_0">—</strong><span class="match-stat-label" dir="rtl">شوت <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shots_1">—</strong><div class="match-stat-bar" id="performance_bar_shots" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shotOn_0">—</strong><span class="match-stat-label" dir="rtl">شوت در چارچوب <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shotOn_1">—</strong><div class="match-stat-bar" id="performance_bar_shotOn" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shotOff_0">—</strong><span class="match-stat-label" dir="rtl">شوت خارج از چارچوب <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shotOff_1">—</strong><div class="match-stat-bar" id="performance_bar_shotOff" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_shotBlocked_0">—</strong><span class="match-stat-label" dir="rtl">شوت مسدودشده <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_shotBlocked_1">—</strong><div class="match-stat-bar" id="performance_bar_shotBlocked" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_saves_0">—</strong><span class="match-stat-label" dir="rtl">مهار ثبت‌شدهٔ شوت <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_saves_1">—</strong><div class="match-stat-bar" id="performance_bar_saves" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_passes_0">—</strong><span class="match-stat-label" dir="rtl">پاس <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_passes_1">—</strong><div class="match-stat-bar" id="performance_bar_passes" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_passFail_0">—</strong><span class="match-stat-label" dir="rtl">پاس ناموفق <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_passFail_1">—</strong><div class="match-stat-bar" id="performance_bar_passFail" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_passOK_0">—</strong><span class="match-stat-label" dir="rtl">پاس صحیح <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_passOK_1">—</strong><div class="match-stat-bar" id="performance_bar_passOK" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_accuracy_0">—</strong><span class="match-stat-label" dir="rtl">دقت پاس <small title="برآورد از رویدادهای تشخیص‌داده‌شده">≈</small></span><strong class="stat-number stat-number-right" id="performance_accuracy_1">—</strong><div class="match-stat-bar" id="performance_bar_accuracy" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_corners_0">—</strong><span class="match-stat-label" dir="rtl">کرنر </span><strong class="stat-number stat-number-right" id="performance_corners_1">—</strong><div class="match-stat-bar" id="performance_bar_corners" hidden><span></span><span></span></div></div><div class="match-stat-row"><strong class="stat-number stat-number-left" id="performance_offsides_0">—</strong><span class="match-stat-label" dir="rtl">آفساید </span><strong class="stat-number stat-number-right" id="performance_offsides_1">—</strong><div class="match-stat-bar" id="performance_bar_offsides" hidden><span></span><span></span></div></div></div><p class="foot">≈ برآورد از رویدادهای تشخیص‌داده‌شده؛ آمار زنده ممکن است ناقص باشد. «—» یعنی دادهٔ کافی نداریم. مهار دروازه‌بان از تفاضل شوت و گل محاسبه نمی‌شود.</p></section>
 <section class="card results"><div class="result-head"><div><h2 id="resultsTitle">گزارش تست</h2><p id="reportNote">پس از شروع، آمار و JSON نتایج اینجا نمایش داده می‌شوند.</p></div><button class="btn primary" id="zip" disabled>دانلود ZIP لاگ‌ها</button></div><div class="stats"><div class="stat"><strong id="completed">0</strong><span>بازی کامل‌شده</span></div><div class="stat"><strong id="leftWins">0</strong><span>برد تیم چپ</span></div><div class="stat"><strong id="draws">0</strong><span>مساوی</span></div><div class="stat"><strong id="rightWins">0</strong><span>برد تیم راست</span></div><div class="stat"><strong id="leftGoals">0</strong><span>گل تیم چپ</span></div><div class="stat"><strong id="rightGoals">0</strong><span>گل تیم راست</span></div></div><div class="stats" style="margin-top:12px;grid-template-columns:repeat(4,1fr)"><div class="stat"><strong id="posLeft">—</strong><span>میانگین مالکیت چپ ٪</span></div><div class="stat"><strong id="posRight">—</strong><span>میانگین مالکیت راست ٪</span></div><div class="stat"><strong id="posFree">—</strong><span>میانگین توپ آزاد ٪</span></div><div class="stat"><strong id="posShared">—</strong><span>میانگین کنترل مشترک ٪</span></div></div><div class="json-head"><h2 dir="ltr">results.json</h2><div class="buttons"><button class="btn" id="copy" disabled>کپی JSON</button><button class="btn" id="download" disabled>دانلود JSON</button></div></div><pre id="json" tabindex="0" aria-label="JSON نتایج">{
@@ -108,7 +131,7 @@ $('themeLight').addEventListener('click',()=>setTheme('light'));
 $('themeDark').addEventListener('click',()=>setTheme('dark'));
 // Keep monitor telemetry out of the displayed, copied and downloaded results.
 function resultsReport(){return monitorSource==='file'&&localResults?localResults:report||{status:'idle',total:0,matches:[]};}
-function resultsJSON(){return JSON.stringify(resultsReport(),(key,value)=>['frame','frames','players','ball'].includes(key)?undefined:value,2);}
+function resultsJSON(){return JSON.stringify(resultsReport(),(key,value)=>['frame','frames','players','ball','monitor_parameters','monitor_types'].includes(key)?undefined:value,2);}
 
 $('api').value=location.protocol.startsWith('http')?location.origin:'';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -336,6 +359,7 @@ function updateServerGoals(){
 }
 const directLive={source:null,test:null,frames:new Map(),received:0,timers:[],watchdog:null};
 let monitorSource='server',localReplayIndex=0,localResults=null,localReplay=null,localReplayName='',localRead=0;
+const swView={zoom:1,pan:[0,0],reverse:false,reverseDraw:false,selected:null,auto:null,focus:null,direction:1,frame:null,transform:null,skin:'Fusion',fontSize:12,colors:{field:'#1fa01f',left:'#ffd700',right:'#f01414',leftGoalie:'#28e61e',rightGoalie:'#c337f0'},flags:{numbers:true,types:false,stamina:false,view:false,body:false,catchable:false,tackle:false,kick:false,point:false,attention:false,score:true,ball:true,players:true,landmarks:false,offside:false},labels:[],drawData:[],dialog:null};
 const arenaMonitor={test:null,key:'',signature:'',data:null,index:0,playing:false,timer:null,request:0,loading:false};
 function monitorStop(){arenaMonitor.playing=false;if(arenaMonitor.timer!==null)clearTimeout(arenaMonitor.timer);arenaMonitor.timer=null;$('monitorPlay').textContent='پخش ▶';}
 function monitorClear(){hideLiveTimeline();stopSmoothLive();clearGoalNotice();monitorStop();arenaMonitor.data=null;arenaMonitor.index=0;$('monitorSeek').value=0;$('monitorSeek').max=0;$('monitorSeek').disabled=true;$('monitorPlay').disabled=true;}
@@ -346,27 +370,7 @@ function playerStaminaColor(side,stamina){
  const energy=Math.max(0,Math.min(1,stamina/1000)),white=.6*(1-energy);
  return 'rgb('+base.map(c=>Math.round(c+(255-c)*white)).join(',')+')';
 }
-function drawPitch(frame){
- const canvas=$('pitch');if(!canvas.getContext)return;const c=canvas.getContext('2d');if(!c)return;
- const W=canvas.width,H=canvas.height,scale=Math.min(W/115,H/78),cx=W/2,cy=H/2;
- const X=x=>cx+x*scale,Y=y=>cy+y*scale;
- c.clearRect(0,0,W,H);c.fillStyle='#104d35';c.fillRect(0,0,W,H);
- for(let i=0;i<10;i++){c.fillStyle=i%2?'#197647':'#1b7e4c';c.fillRect(X(-52.5+i*10.5),Y(-34),10.5*scale,68*scale);}
- c.strokeStyle='#deede2';c.lineWidth=2;
- const box=(x,y,w,h)=>c.strokeRect(X(x),Y(y),w*scale,h*scale);
- const circle=(x,y,r)=>{c.beginPath();c.arc(X(x),Y(y),r*scale,0,Math.PI*2);c.stroke();};
- box(-52.5,-34,105,68);c.beginPath();c.moveTo(X(0),Y(-34));c.lineTo(X(0),Y(34));c.stroke();circle(0,0,9.15);
- for(const side of [-1,1]){box(side<0?-52.5:36,-20.16,16.5,40.32);box(side<0?-52.5:47,-9.16,5.5,18.32);box(side<0?-54.9:52.5,-7.01,2.4,14.02);circle(side*41.5,0,.18);}
- if(!frame){c.fillStyle='#fff';c.textAlign='center';c.font='24px sans-serif';c.fillText('منتظر دادهٔ واقعی مسابقه',cx,cy);return;}
- for(const p of frame.players||[]){
-  const [side,n,x,y,body,goalie,stamina]=p;if(!Number.isFinite(x)||!Number.isFinite(y))continue;
-  c.save();c.translate(X(x),Y(y));c.fillStyle=playerStaminaColor(side,stamina);c.strokeStyle=goalie?'#fff247':side==='l'?'#2475be':'#ae5b16';c.lineWidth=goalie?3:1.5;
-  c.beginPath();c.arc(0,0,9,0,Math.PI*2);c.fill();c.stroke();
-  const rad=(body||0)*Math.PI/180;c.beginPath();c.moveTo(Math.cos(rad)*10,Math.sin(rad)*10);c.lineTo(Math.cos(rad)*16,Math.sin(rad)*16);c.stroke();
-  c.fillStyle='#081323';c.font='bold 11px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(String(n),0,0);c.restore();
- }
- if(frame.ball?.every(Number.isFinite)){c.fillStyle='#fff';c.strokeStyle='#071a13';c.lineWidth=2;c.beginPath();c.arc(X(frame.ball[0]),Y(frame.ball[1]),5,0,Math.PI*2);c.fill();c.stroke();}
-}
+function drawPitch(frame){swDrawPitch(frame);}
 
 const performanceSnapshots=new WeakMap();
 const performanceKeys=['passOK','passFail','deepOK','deepFail','shotOn','shotOff','shotBlocked','dribbleOK','dribbleFail','corners','offsides','saves'];
@@ -540,7 +544,7 @@ function showTeamRatings(){
 }
 
 function monitorDisplay(frame,paint=true){
- if(paint)drawPitch(frame);const match=selectedMatch(),serverReport=monitorSource==='server'?report:null;
+ swView.frame=frame;if(paint)drawPitch(frame);swRefreshStatus();const match=selectedMatch(),serverReport=monitorSource==='server'?report:null;
  $('monitorLeft').textContent=frame?.names?.[0]||match?.left_team||serverReport?.config?.left?.name||'Left';
  $('monitorRight').textContent=frame?.names?.[1]||match?.right_team||serverReport?.config?.right?.name||'Right';
  $('monitorScore').textContent=frame?.score?frame.score.join(' : '):'— : —';
@@ -558,8 +562,8 @@ function monitorReplayFrame(){
 }
 function monitorTick(){
  if(!arenaMonitor.playing||!arenaMonitor.data)return;
- if(arenaMonitor.index>=arenaMonitor.data.frames.length-1){monitorStop();return;}
- const previous=arenaMonitor.data.frames[arenaMonitor.index];arenaMonitor.index++;monitorReplayFrame();announceReplayGoal(previous,arenaMonitor.data.frames[arenaMonitor.index]);
+ if((swView.direction>0&&arenaMonitor.index>=arenaMonitor.data.frames.length-1)||(swView.direction<0&&arenaMonitor.index<=0)){monitorStop();return;}
+ const previous=arenaMonitor.data.frames[arenaMonitor.index];arenaMonitor.index+=swView.direction;monitorReplayFrame();announceReplayGoal(previous,arenaMonitor.data.frames[arenaMonitor.index]);
  arenaMonitor.timer=setTimeout(monitorTick,arenaMonitor.data.step_ms/Number($('monitorSpeed').value||1));
 }
 async function loadMonitorReplay(){
@@ -589,9 +593,10 @@ function timelineFrame(entry,now=Date.now()){
  let target;
  if(entry.cursor==null)target=typeof requestAnimationFrame==='function'?Math.max(first,Math.min(last,Math.max(entry.followFloor||first,now-(smoothLive.offset||0)-smoothLive.delay))):last;
  else{
-  if(entry.playing)entry.cursor+=(now-(entry.playAt||now))*Number($('monitorSpeed').value||1);
+  if(entry.playing)entry.cursor+=(now-(entry.playAt||now))*Number($('monitorSpeed').value||1)*swView.direction;
   entry.playAt=now;entry.cursor=Math.max(first,Math.min(last,entry.cursor));target=entry.cursor;
-  if(entry.playing&&target>=last){entry.cursor=null;entry.playing=false;}
+  if(entry.playing&&swView.direction<0&&target<=first)entry.playing=false;
+  if(entry.playing&&swView.direction>0&&target>=last){entry.cursor=null;entry.playing=false;}
  }
  const following=entry.cursor==null,frame=smoothFrame(history,target);
  $('monitorSeek').max=Math.max(0,last-first);$('monitorSeek').value=following?last-first:target-first;$('monitorSeek').disabled=history.length<2;
@@ -659,6 +664,7 @@ function stopDirectLive(preserve=false){
  if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);directLive.watchdog=null;
 }
 function startDirectLive(){
+ if(swView.disconnected)return;
  if(typeof EventSource==='undefined'||!job||!report||report.demo)return;
  if(!['queued','running'].includes(report.status)){stopDirectLive(true);return;}
  const key=job.api+'/'+job.id;if(directLive.test===key)return;
@@ -696,6 +702,7 @@ function startDirectLive(){
  source.onerror=()=>{if(directLive.source===source&&$('monitorMode').value==='live')monitorLive();};
 }
 function monitorLive(){
+ if(swView.disconnected)return;
  if(monitorSource==='file')return;
  let fresh=directLive.frames.get(arenaMonitor.key);
  const progress=report?.progress;
@@ -763,7 +770,7 @@ $('monitorAutoNext').addEventListener('change',()=>updateMonitor());
 $('monitorMatch').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;arenaMonitor.key=$('monitorMatch').value;monitorClear();if(selectedMatch())loadMonitorReplay();else{$('monitorMode').value='live';monitorLive();}});
 $('monitorMode').addEventListener('change',()=>{arenaMonitor.request++;arenaMonitor.loading=false;monitorClear();if($('monitorMode').value==='replay')loadMonitorReplay();else{updateMonitor();}});
 $('monitorLoad').addEventListener('click',loadMonitorReplay);
-$('monitorPlay').addEventListener('click',()=>{if(isLiveView()){const entry=liveHistory();if(!entry?.history?.length)return;if(entry.cursor==null)entry.cursor=entry.history[entry.history.length-1].stamp;entry.playing=!entry.playing;entry.playAt=Date.now();paintLiveTimeline(entry);startSmoothLive();return;}if(arenaMonitor.playing){monitorStop();return;}if(!arenaMonitor.data)return;if(arenaMonitor.index>=arenaMonitor.data.frames.length-1)arenaMonitor.index=0;arenaMonitor.playing=true;$('monitorPlay').textContent='توقف موقت ❚❚';monitorTick();});
+$('monitorPlay').addEventListener('click',()=>{swView.direction=1;if(isLiveView()){const entry=liveHistory();if(!entry?.history?.length)return;if(entry.cursor==null)entry.cursor=entry.history[entry.history.length-1].stamp;entry.playing=!entry.playing;entry.playAt=Date.now();paintLiveTimeline(entry);startSmoothLive();return;}if(arenaMonitor.playing){monitorStop();return;}if(!arenaMonitor.data)return;if(arenaMonitor.index>=arenaMonitor.data.frames.length-1)arenaMonitor.index=0;arenaMonitor.playing=true;$('monitorPlay').textContent='توقف موقت ❚❚';monitorTick();});
 $('monitorSeek').addEventListener('input',()=>{clearGoalNotice();monitorStop();if(isLiveView()){const entry=liveHistory();if(!entry?.history?.length)return;const first=entry.history[0].stamp,last=entry.history[entry.history.length-1].stamp;entry.cursor=Math.max(first,Math.min(last,first+Number($('monitorSeek').value||0)));entry.playing=false;entry.playAt=Date.now();paintLiveTimeline(entry);startSmoothLive();return;}arenaMonitor.index=Number($('monitorSeek').value);monitorReplayFrame();});
 
 $('monitorLiveButton').addEventListener('click',()=>{if(!isLiveView())return;const entry=liveHistory();if(!entry)return;entry.cursor=null;entry.playing=false;entry.followFloor=entry.history?.at(-1)?.stamp;monitorLive();});
@@ -780,7 +787,7 @@ function rcgRecord(line){
 async function parseLocalRCG(text,current=()=>true){
  const lines=text.split(/\r?\n/);
  if(!['ULG4','ULG5','ULG6'].includes(lines[0]?.replace(/^\uFEFF/,'').trim()))throw Error('این نسخه فقط RCG متنی ULG4، ULG5 و ULG6 را می‌خواند؛ فایل RCL یا RCG باینری قابل خواندن نیست.');
- const frames=[],playerTypes={};let names=['Left','Right'],score=[0,0],mode='before_kick_off',step=100;const sizes={player_size:.3,kickable_margin:.7,ball_size:.085};
+ const frames=[],playerTypes={};let names=['Left','Right'],score=[0,0],mode='before_kick_off',step=100;const sizes={player_size:.3,kickable_margin:.7,ball_size:.085};const serverParameters={};
  const num=v=>{const n=Number(v);if(!Number.isFinite(n))throw Error('مختصات نامعتبر در RCG.');return n;};
  for(let i=1;i<lines.length;i++){
   if(i%400===0){await new Promise(r=>setTimeout(r,0));if(!current())return null;}
@@ -789,10 +796,10 @@ async function parseLocalRCG(text,current=()=>true){
   const rec=rcgRecord(line);
   if(rec[0]==='team'){names=rec.slice(2,4);score=[num(rec[4]),num(rec[5])];}
   else if(rec[0]==='playmode')mode=rec[2];
-  else if(rec[0]==='server_param'){const p=rec.find(x=>Array.isArray(x)&&x[0]==='simulator_step');if(p)step=Math.max(1,Math.min(1000,num(p[1])));for(const k of Object.keys(sizes)){const v=rec.find(x=>Array.isArray(x)&&x[0]===k);if(v)sizes[k]=num(v[1]);}}
-  else if(rec[0]==='player_type'){const id=rec.find(x=>Array.isArray(x)&&x[0]==='id'),pt={};for(const k of ['player_size','kickable_margin']){const v=rec.find(x=>Array.isArray(x)&&x[0]===k);if(v)pt[k]=num(v[1]);}if(id)playerTypes[num(id[1])]=pt;}
+  else if(rec[0]==='server_param'){const p=rec.find(x=>Array.isArray(x)&&x[0]==='simulator_step');if(p)step=Math.max(1,Math.min(1000,num(p[1])));for(const v of rec.slice(1)){if(Array.isArray(v)&&v.length===2&&Number.isFinite(Number(v[1])))serverParameters[v[0]]=num(v[1]);}for(const k of Object.keys(sizes)){const v=rec.find(x=>Array.isArray(x)&&x[0]===k);if(v)sizes[k]=num(v[1]);}}
+  else if(rec[0]==='player_type'){const id=rec.find(x=>Array.isArray(x)&&x[0]==='id'),pt={};for(const k of ['player_size','kickable_margin','player_speed_max','player_decay','dash_power_rate','effort_max','effort_min']){const v=rec.find(x=>Array.isArray(x)&&x[0]===k);if(v)pt[k]=num(v[1]);}if(id)playerTypes[num(id[1])]=pt;}
   else{
-   const frame={cycle:num(rec[1]),ball:null,players:[],names:[...names],score:[...score],mode};
+   const frame={cycle:num(rec[1]),ball:null,players:[],names:[...names],score:[...score],mode,parameters:serverParameters,player_types:playerTypes};
    for(const item of rec.slice(2)){
     if(!Array.isArray(item))continue;
     if(item[0]==='pm')frame.mode=item[1];
@@ -804,7 +811,7 @@ async function parseLocalRCG(text,current=()=>true){
       if(state&&!(state&(0x100|0x200|0x80000))){
        const player=[item[0][0],num(item[0][1]),num(item[3]),num(item[4]),item.length>7?num(item[7]):0,!!(state&8)];
        const stamina=item.find(v=>Array.isArray(v)&&v[0]==='s');if(stamina?.length>1)player.push(num(stamina[1]));
-       frame.players.push(player);const pt=playerTypes[num(item[1])]||{};frame.control_radii??={};frame.control_radii[eventId]=(pt.player_size??sizes.player_size)+(pt.kickable_margin??sizes.kickable_margin)+sizes.ball_size;const counters=item.find(v=>Array.isArray(v)&&v[0]==='c');if(counters?.length>1){frame.kicks??={};frame.kicks[player[0]+':'+player[1]]=num(counters[1]);}
+       frame.players.push(player);const meta={type:num(item[1]),state};if(item.length>6)meta.velocity=[num(item[5]),num(item[6])];if(item.length>8&&!Array.isArray(item[8]))meta.neck=num(item[8]);if(item.length>10&&!Array.isArray(item[9])&&!Array.isArray(item[10]))meta.pointto=[num(item[9]),num(item[10])];for(const v of item){if(!Array.isArray(v))continue;if(v[0]==='v'&&v.length>2){meta.view_quality=v[1];meta.view_width=num(v[2]);}else if(v[0]==='s'&&v.length>3){meta.effort=num(v[2]);meta.recovery=num(v[3]);}else if(v[0]==='f'&&v.length>2)meta.attention=[v[1],num(v[2])];else if(v[0]==='c')meta.counters=v.slice(1).map(num);}frame.player_meta??={};frame.player_meta[eventId]=meta;const pt=playerTypes[num(item[1])]||{};frame.control_radii??={};frame.control_radii[eventId]=(pt.player_size??sizes.player_size)+(pt.kickable_margin??sizes.kickable_margin)+sizes.ball_size;const counters=item.find(v=>Array.isArray(v)&&v[0]==='c');if(counters?.length>1){frame.kicks??={};frame.kicks[player[0]+':'+player[1]]=num(counters[1]);}
       }
      }
     }
@@ -842,6 +849,180 @@ $('monitorFile').addEventListener('change',async()=>{
   showLocalReplay();render();
  }catch(e){if(token===localRead&&monitorSource==='file'){$('monitorBadge').textContent='خطای فایل RCG';$('monitorInfo').textContent=e.message;}}
 });
+
+// Original browser implementation; action names/default keys and palette follow SoccerWindow2.
+function swSelected(){return swView.frame?.players?.find(p=>p[0]+':'+p[1]===swView.selected);}
+function swMeta(p){return swView.frame?.player_meta?.[p[0]+':'+p[1]]||{};}
+function swDrawPitch(frame){
+ const canvas=$('pitch');if(!canvas.getContext)return;const c=canvas.getContext('2d');if(!c)return;
+ const W=canvas.width,H=canvas.height,s=Math.min(W/115,H/78)*swView.zoom,sign=swView.reverse?-1:1;
+ const players=frame?.players||[];
+ if(swView.auto&&frame?.ball){const candidates=players.filter(p=>swView.auto==='all'||p[0]===swView.auto);candidates.sort((a,b)=>Math.hypot(a[2]-frame.ball[0],a[3]-frame.ball[1])-Math.hypot(b[2]-frame.ball[0],b[3]-frame.ball[1]));if(candidates[0])swView.selected=candidates[0][0]+':'+candidates[0][1];}
+ const selected=players.find(p=>p[0]+':'+p[1]===swView.selected),center=swView.focus==='ball'?frame?.ball:swView.focus==='player'&&selected?[selected[2],selected[3]]:swView.pan;
+ const origin=center||swView.pan,X=x=>W/2+(x-origin[0])*s*sign,Y=y=>H/2+(y-origin[1])*s*sign;
+ swView.transform={s,sign,origin,W,H};
+ c.clearRect(0,0,W,H);c.fillStyle=swView.colors.field;c.fillRect(0,0,W,H);
+ c.strokeStyle='#fff';c.lineWidth=1.5;
+ const box=(x,y,w,h)=>{const x1=X(x),x2=X(x+w),y1=Y(y),y2=Y(y+h);c.strokeRect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));};
+ const circle=(x,y,r)=>{c.beginPath();c.arc(X(x),Y(y),r*s,0,Math.PI*2);c.stroke();};
+ const line=(x,y,a,b,color)=>{c.strokeStyle=color||'#fff';c.beginPath();c.moveTo(X(x),Y(y));c.lineTo(X(a),Y(b));c.stroke();};
+ box(-52.5,-34,105,68);line(0,-34,0,34);circle(0,0,9.15);
+ for(const d of [-1,1]){box(d<0?-52.5:36,-20.16,16.5,40.32);box(d<0?-52.5:47,-9.16,5.5,18.32);box(d<0?-54.9:52.5,-7.01,2.4,14.02);circle(d*41.5,0,.18);c.beginPath();const angle=Math.acos(5.5/9.15);const middle=d<0?0:Math.PI;c.arc(X(d*41.5),Y(0),9.15*s,middle-angle+(sign<0?Math.PI:0),middle+angle+(sign<0?Math.PI:0));c.stroke();}
+ if(swView.flags.landmarks){c.fillStyle='#fff';for(const x of [-52.5,0,52.5])for(const y of [-34,34]){c.fillRect(X(x)-2,Y(y)-2,4,4);}}
+ if(!frame){c.fillStyle='#fff';c.font='20px Arial';c.textAlign='center';c.fillText('soccerwindow2 — Ready',W/2,H/2);return;}
+ if(swView.flags.offside){for(const side of ['l','r']){const dir=performanceDirection(frame,side==='r'?1:0),def=players.filter(p=>p[0]!==side).map(p=>p[2]*dir).sort((a,b)=>b-a);if(def.length>=2){const x=dir*Math.max(0,def[1],(frame.ball?.[0]||0)*dir);line(x,-34,x,34,side==='l'?'#ffd700':'#f01414');}}}
+ const ordered=swView.reverseDraw?[...players].reverse():players;
+ if(swView.flags.players)for(const p of ordered){
+  const [side,n,x,y,body,goalie,stamina]=p;if(!Number.isFinite(x)||!Number.isFinite(y))continue;
+  const meta=frame.player_meta?.[side+':'+n]||{},pt=frame.player_types?.[meta.type]||{},sp=frame.parameters||{};
+  const chosen=swView.selected===side+':'+n,rad=((body||0)+(sign<0?180:0))*Math.PI/180;
+  const rawRadius=pt.player_size??sp.player_size??.3,drawRadius=swView.enlarge===false?Math.max(2,rawRadius*s):Math.max(5,(frame.control_radii?.[side+':'+n]??1.085)*s);
+  c.save();c.translate(X(x),Y(y));
+  const localLine=(a,b,color)=>{c.strokeStyle=color;c.beginPath();c.moveTo(0,0);c.lineTo(a,b);c.stroke();};
+  const ring=(r,color)=>{c.strokeStyle=color;c.beginPath();c.arc(0,0,r*s,0,Math.PI*2);c.stroke();};
+  if(chosen){
+   if(swView.flags.view&&Number.isFinite(meta.view_width)&&Number.isFinite(meta.neck)){const look=rad+meta.neck*Math.PI/180,w=meta.view_width*Math.PI/360;c.fillStyle='#37ffff24';c.strokeStyle='#37ffff';c.beginPath();c.moveTo(0,0);c.arc(0,0,20*s,look-w,look+w);c.closePath();c.fill();c.stroke();if(Number.isFinite(sp.visible_distance))ring(sp.visible_distance,'#ffffff88');}
+   if(swView.flags.kick&&frame.control_radii?.[side+':'+n])ring(frame.control_radii[side+':'+n],'#ffb4ff');
+   if(swView.flags.catchable&&goalie&&Number.isFinite(sp.catchable_area_l)&&Number.isFinite(sp.catchable_area_w)){c.save();c.rotate(rad);c.strokeStyle='#df88ff';c.strokeRect(0,-sp.catchable_area_w*s/2,sp.catchable_area_l*s,sp.catchable_area_w*s);c.restore();}
+   if(swView.flags.tackle&&Number.isFinite(sp.tackle_dist)&&Number.isFinite(sp.tackle_back_dist)&&Number.isFinite(sp.tackle_width)){c.save();c.rotate(rad);c.strokeStyle='#ff887f';c.strokeRect(-sp.tackle_back_dist*s,-sp.tackle_width*s,(sp.tackle_dist+sp.tackle_back_dist)*s,2*sp.tackle_width*s);c.restore();}
+  }
+  if(swView.flags.body){c.fillStyle='#0002';c.beginPath();c.arc(2,3,drawRadius+2,0,Math.PI*2);c.fill();}
+  c.fillStyle=swView.colors[side==='l'?(goalie?'leftGoalie':'left'):(goalie?'rightGoalie':'right')];c.strokeStyle='#000';c.lineWidth=1;
+  c.beginPath();c.arc(0,0,drawRadius,0,Math.PI*2);c.fill();c.stroke();
+  localLine(Math.cos(rad)*(drawRadius+5),Math.sin(rad)*(drawRadius+5),'#000');
+  if(chosen){c.strokeStyle='#fff';c.lineWidth=2;c.beginPath();c.arc(0,0,drawRadius+3,0,Math.PI*2);c.stroke();if(Number.isFinite(meta.neck)){const look=rad+meta.neck*Math.PI/180;localLine(Math.cos(look)*(drawRadius+10),Math.sin(look)*(drawRadius+10),'#37ffff');}}
+  if(swView.flags.point&&meta.pointto){const vx=(meta.pointto[0]-x)*s*sign,vy=(meta.pointto[1]-y)*s*sign;localLine(vx,vy,'#ff887f');}
+  if(swView.flags.attention&&meta.attention){const target=players.find(q=>q[0]===meta.attention[0]&&q[1]===meta.attention[1]);if(target)localLine((target[2]-x)*s*sign,(target[3]-y)*s*sign,'#37ffff');}
+  c.font='bold '+swView.fontSize+'px Arial';c.textAlign='center';c.textBaseline='middle';c.fillStyle='#fff';
+  if(swView.flags.numbers){c.strokeStyle='#000';c.lineWidth=2;c.strokeText?.(String(n),0,0);c.fillText(String(n),0,0);}
+  if(swView.flags.types&&Number.isFinite(meta.type))c.fillText('['+meta.type+']',0,-drawRadius-8);
+  if(swView.flags.stamina&&Number.isFinite(stamina)){c.fillStyle='#0fff8d';c.font='11px Arial';c.fillText(String(Math.round(stamina)),0,drawRadius+9);}
+  c.restore();
+ }
+ if(swView.flags.ball&&frame.ball?.every(Number.isFinite)){c.fillStyle='#fff';c.strokeStyle='#fff';c.beginPath();c.arc(X(frame.ball[0]),Y(frame.ball[1]),Math.max(3,(frame.parameters?.ball_size??.085)*s),0,Math.PI*2);c.fill();c.stroke();}
+}
+function swRefreshStatus(){
+ const frame=swView.frame,p=swSelected();$('swStatusMode').textContent=frame?'['+frame.cycle+'] '+(frame.mode??'')+' • '+(isLiveView()?'Monitor':'LogPlayer'):'Ready';
+ $('swStatusPlayer').textContent=p?(p[0]==='l'?'Left':'Right')+' #'+p[1]+' ('+p[2].toFixed(2)+', '+p[3].toFixed(2)+')':'No player selected';
+ if($('swCycleInput')&&document.activeElement!==$('swCycleInput'))$('swCycleInput').value=frame?.cycle??0;
+ if(swView.dialog==='detail')swDetailBody();
+}
+function swRedraw(){swDrawPitch(swView.frame);swRefreshStatus();swChecks();}
+function swItems(){
+ if(isLiveView()){const entry=liveHistory();return entry?.history?.map(s=>({frame:s.frame,stamp:s.stamp}))||[];}
+ return (arenaMonitor.data?.frames||[]).map((frame,index)=>({frame,index}));
+}
+function swSeek(index){
+ const items=swItems();if(!items.length)return;index=Math.max(0,Math.min(items.length-1,index));monitorStop();clearGoalNotice();
+ if(isLiveView()){const entry=liveHistory();entry.cursor=items[index].stamp;entry.playing=false;entry.playAt=Date.now();paintLiveTimeline(entry);startSmoothLive();}
+ else{arenaMonitor.index=index;monitorReplayFrame();}
+}
+function swIndex(){const items=swItems();if(!isLiveView())return arenaMonitor.index;const cursor=liveHistory()?.cursor;if(cursor!=null){let at=0;for(let i=0;i<items.length;i++){if(items[i].stamp<=cursor)at=i;else break;}return at;}return items.length-1;}
+function swStep(delta){swSeek(swIndex()+delta);}
+function swGoal(direction){const items=swItems(),index=swIndex(),goals=[];for(let i=1;i<items.length;i++){const a=items[i-1].frame.score,b=items[i].frame.score;if(a&&b&&(b[0]>a[0]||b[1]>a[1]))goals.push(i);}const next=direction>0?goals.find(i=>i>index):goals.reverse().find(i=>i<index);if(next!==undefined)swSeek(next);}
+function swPlay(direction=1){
+ swView.direction=direction;
+ if(isLiveView()){const entry=liveHistory();if(!entry?.history?.length)return;if(entry.cursor==null)entry.cursor=entry.history.at(-1).stamp;entry.playing=true;entry.playAt=Date.now();startSmoothLive();paintLiveTimeline(entry);return;}
+ if(!arenaMonitor.data)return;monitorStop();if(direction>0&&arenaMonitor.index>=arenaMonitor.data.frames.length-1)arenaMonitor.index=0;arenaMonitor.playing=true;$('monitorPlay').textContent='توقف موقت ❚❚';monitorTick();
+}
+function swPause(){monitorStop();if(isLiveView()){const entry=liveHistory();if(entry?.history?.length){if(entry.cursor==null)entry.cursor=entry.history.at(-1).stamp;entry.playing=false;paintLiveTimeline(entry);}}}
+function swSpeed(delta){const speeds=[.1,.25,.5,1,2,4,8,16,32],current=Number($('monitorSpeed').value)||1;const at=speeds.reduce((best,n,i)=>Math.abs(n-current)<Math.abs(speeds[best]-current)?i:best,0);$('monitorSpeed').value=String(speeds[Math.max(0,Math.min(speeds.length-1,at+delta))]);}
+function swSelect(side,n){swView.selected=side+':'+n;swView.auto=null;swRedraw();}
+function swOpenDialog(title,kind){swPause();swView.dialog=kind;$('swDialogTitle').textContent=title;$('swDialogBody').replaceChildren();$('swDialog').hidden=false;swCloseMenus();}
+function swText(tag,text){const el=document.createElement(tag);el.textContent=text;return el;}
+function swTable(headers,rows){const t=document.createElement('table'),head=document.createElement('tr');for(const h of headers)head.append(swText('th',h));t.append(head);for(const row of rows){const tr=document.createElement('tr');for(const v of row)tr.append(swText('td',Array.isArray(v)?v.join(', '):v??'—'));t.append(tr);}return t;}
+function swDetailBody(){
+ if(!document.createElement)return;const p=swSelected(),f=swView.frame;const rows=[];
+ if(p){const m=swMeta(p);for(const [k,v] of Object.entries({team:f.names?.[p[0]==='l'?0:1],number:p[1],position:[p[2],p[3]],body:p[4],goalie:p[5],stamina:p[6],...m}))rows.push([k,v]);}
+ else if(f?.ball)rows.push(['Ball position',f.ball],['Ball velocity',f.ball_velocity]);
+ else rows.push(['Status','No frame loaded']);
+ $('swDialogBody').replaceChildren(swTable(['Property','Value'],rows));
+}
+function swCloseMenus(){document.querySelectorAll('.sw-menu[open]').forEach(el=>el.open=false);}
+function swChecks(){if(!document.querySelectorAll)return;document.querySelectorAll('[data-sw-action]').forEach(b=>{const id=b.dataset?.swAction;if(!id)return;const v=id.startsWith('flag:')?swView.flags[id.slice(5)]:id==='reverse'?swView.reverse:id==='reverseDraw'?swView.reverseDraw:id==='enlarge'?swView.enlarge!==false:id.startsWith('focus:')?swView.focus===id.slice(6):id.startsWith('auto:')?swView.auto===id.slice(5):null;if(v!==null){b.setAttribute('aria-pressed',String(v));const check=b.querySelector?.('.sw-check');if(check)check.textContent=v?'✓':'';}});}
+const swActions=[];
+function swAction(id){
+ swCloseMenus();
+ if(id.startsWith('flag:')){const k=id.slice(5);swView.flags[k]=!swView.flags[k];if(k==='score')document.querySelector('.monitor-score').hidden=!swView.flags.score;swRedraw();return;}
+ if(id.startsWith('select:')){const [,side,n]=id.split(':');swSelect(side,Number(n));return;}
+ if(id.startsWith('focus:')){const k=id.slice(6);swView.focus=swView.focus===k?null:k;swRedraw();return;}
+ if(id.startsWith('auto:')){const k=id.slice(5);swView.auto=swView.auto===k?null:k;swRedraw();return;}
+ switch(id){
+ case 'open':$('monitorSource').value='file';$('monitorSource').dispatchEvent(new Event('change'));$('monitorFile').click();break;
+ case 'save':if(monitorSource==='file'&&$('monitorFile').files[0])save($('monitorFile').files[0],localReplayName);else if(job)$('zip').click();break;
+ case 'png':{const c=$('pitch');c.toBlob(blob=>{if(blob)save(blob,'soccerwindow2-'+(swView.frame?.cycle??0)+'.png');});break;}
+ case 'quit':swPause();$('matchMonitor').hidden=true;$('swReopen').hidden=false;break;
+ case 'connect':swView.disconnected=false;$('monitorSource').value='server';$('monitorSource').dispatchEvent(new Event('change'));$('monitorMode').value='live';$('monitorMode').dispatchEvent(new Event('change'));break;
+ case 'connectTo':swOpenDialog('Connect to …','connect');$('swDialogBody').append(swText('p','Choose the Arena service and execution mode. The browser uses the authenticated Worker bridge, not a direct UDP connection.'));const go=swText('button','Open connection settings');go.onclick=()=>{$('swDialogClose').click();const panel=document.querySelector('.connection');panel.open=true;panel.scrollIntoView({behavior:'smooth'});$('api').focus();};$('swDialogBody').append(go);break;
+ case 'disconnect':swPause();stopDirectLive(true);stopSmoothLive();swView.disconnected=true;$('swStatusMode').textContent='Disconnected — match continues on runner';break;
+ case 'live':swView.disconnected=false;swView.direction=1;if(monitorSource==='file'){swAction('connect');break;}$('monitorMode').value='live';updateMonitor();$('monitorLiveButton').click();break;
+ case 'launcher':$('form').scrollIntoView({behavior:'smooth'});$('leftName').focus();break;
+ case 'menu':$('swMenus').hidden=!$('swMenus').hidden;break;
+ case 'tools':for(const id of ['swMainTools','swPlayTools'])$(id).hidden=!$(id).hidden;break;
+ case 'status':$('swStatus').hidden=!$('swStatus').hidden;break;
+ case 'fullscreen':{const node=$('matchMonitor');if(document.fullscreenElement)document.exitFullscreen?.();else node.requestFullscreen?.().catch(()=>{});break;}
+ case 'detail':swOpenDialog('Object Detail','detail');swDetailBody();break;
+ case 'types':swOpenDialog('Player Type List','types');{const types=swView.frame?.player_types||{},keys=['player_size','kickable_margin','player_speed_max','player_decay','dash_power_rate','effort_max','effort_min'];$('swDialogBody').append(swTable(['Type',...keys],Object.entries(types).map(([id,pt])=>[id,...keys.map(k=>pt[k])])));if(!Object.keys(types).length)$('swDialogBody').append(swText('p','Player-type records are absent from this log or live stream.'));}break;
+ case 'style':swOpenDialog('Qt Style — Web','style');for(const name of ['Fusion','Windows']){const b=swText('button',name);b.onclick=()=>{swView.skin=name;$('matchMonitor').classList.toggle('sw-windows',name==='Windows');};$('swDialogBody').append(b);}break;
+ case 'colors':swOpenDialog('Color Settings','colors');for(const key of Object.keys(swView.colors)){const label=swText('label',key+' '),input=document.createElement('input');input.type='color';input.value=swView.colors[key];input.oninput=()=>{swView.colors[key]=input.value;swRedraw();};label.append(input);$('swDialogBody').append(label);}break;
+ case 'fonts':swOpenDialog('Font Settings','fonts');{const label=swText('label','Player label size '),input=document.createElement('input');input.type='number';input.min=8;input.max=24;input.value=swView.fontSize;input.oninput=()=>{swView.fontSize=Math.max(8,Math.min(24,Number(input.value)||12));swRedraw();};label.append(input);$('swDialogBody').append(label);}break;
+ case 'preferences':swOpenDialog('View Preference','preferences');for(const [key,value] of Object.entries(swView.flags)){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=value;input.onchange=()=>swAction('flag:'+key);label.append(input,document.createTextNode(' '+key));$('swDialogBody').append(label);}break;
+ case 'zoomIn':swView.zoom=Math.min(8,swView.zoom*1.25);swRedraw();break;
+ case 'zoomOut':swView.zoom=Math.max(.5,swView.zoom/1.25);swRedraw();break;
+ case 'fit':swView.zoom=1;swView.pan=[0,0];swView.focus=null;swRedraw();break;
+ case 'enlarge':swView.enlarge=swView.enlarge===false;swRedraw();break;
+ case 'reverse':swView.reverse=!swView.reverse;swRedraw();break;
+ case 'reverseDraw':swView.reverseDraw=!swView.reverseDraw;swRedraw();break;
+ case 'unselect':swView.selected=null;swView.auto=null;swView.focus=null;swRedraw();break;
+ case 'first':swSeek(0);break;case 'last':swSeek(swItems().length-1);break;
+ case 'prevGoal':swGoal(-1);break;case 'nextGoal':swGoal(1);break;
+ case 'back':swStep(-1);break;case 'forward':swStep(1);break;
+ case 'play':if(arenaMonitor.playing||liveHistory()?.playing)swPause();else swPlay(1);break;
+ case 'stop':swPause();break;case 'playBack':swPlay(-1);break;case 'playForward':swPlay(1);break;
+ case 'slower':swSpeed(-1);break;case 'faster':swSpeed(1);break;
+ case 'shortcuts':swOpenDialog('Shortcut Keys','shortcuts');$('swDialogBody').append(swText('p','Shortcuts are active inside this monitor, outside text fields. Some browser-reserved combinations (Ctrl+W, Ctrl+N, Ctrl+T, Ctrl+1…) cannot be overridden reliably; use the corresponding menu.'));$('swDialogBody').append(swTable(['Action','Shortcut'],swActions.filter(a=>a.key).map(a=>[a.label,a.key+(a.disabled?' — unavailable':'')])));break;
+ case 'about':swOpenDialog('About soccerwindow2 Web','about');$('swDialogBody').append(swText('p','RCSS Arena browser monitor. Original web implementation based on the SoccerWindow2 action layout, default shortcuts and colors. Native Qt dialogs, debug-server and team editors are not emulated.'));const a=swText('a','SoccerWindow2 upstream source');a.href='https://github.com/helios-base/soccerwindow2';a.target='_blank';a.rel='noopener';$('swDialogBody').append(a);break;
+ }
+}
+function swInit(){
+ $('matchMonitor').classList.add('sw-window');const reopen=swText('button','Show soccerwindow2 monitor');reopen.type='button';reopen.id='swReopen';reopen.className='btn';reopen.hidden=true;$('matchMonitor').after(reopen);reopen.onclick=()=>{$('matchMonitor').hidden=false;reopen.hidden=true;$('matchMonitor').focus();};
+ const menus={File:[],Monitor:[],LogPlayer:[],View:[],Editor:[],Debug:[],Help:[]};
+ const add=(menu,id,label,key='',disabled='')=>{const a={menu,id,label,key,disabled};swActions.push(a);menus[menu].push(a);};
+ add('File','open','Open rcg file…','Ctrl+O');add('File','save','Save rcg file as…');add('File','openDebug','Open debug view','','Requires a debug-log reader; RCG alone contains no agent debug data');add('File','saveDebug','Save debug view','','Requires loaded debug data');add('File','draw','Open draw data','','Native SoccerWindow2 draw-data format is not supported yet');add('File','png','Save Image');add('File','quit','Quit','Ctrl+Q');
+ add('Monitor','kickoff','KickOff','Ctrl+K','Trainer control is not exposed by this runner');add('Monitor','live','Live Mode','Ctrl+L');add('Monitor','connect','Connect','Ctrl+C');add('Monitor','connectTo','Connect to …');add('Monitor','disconnect','Disconnect');add('Monitor','kill','Kill server','','Use Stop Test in Arena to stop the owned server and teams');add('Monitor','restart','(Re)start server','','Use Start Test in Arena to create a new managed match');add('Monitor','trainer','Trainer Panel','','Requires a separate trainer-control API');add('Monitor','launcher','Launcher Dialog','Ctrl+X');
+ const replay=[['first','Go first','Home','|◀'],['prevGoal','Prev goal','Ctrl+G','⚑◀'],['back','Step back','Left','◀|'],['play','Play/Stop','Space','▶'],['forward','Step forward','Right','|▶'],['nextGoal','Next goal','G','▶⚑'],['last','Go last','End','▶|'],['slower','Decelerate','Ctrl+Left','−'],['faster','Accelerate','Ctrl+Right','+'],['stop','Stop','Down','■'],['playBack','Play Backward','Ctrl+Down','◀'],['playForward','Play Forward','Up','▶']];for(const [id,label,key] of replay)add('LogPlayer',id,label,key);
+ for(const a of [['menu','Menu Bar','Ctrl+M'],['tools','Tool Bar',''],['status','Status Bar',''],['fullscreen','Full Screen','F11'],['types','Player Type List','Ctrl+H'],['detail','Object Detail','Ctrl+I'],['style','Qt Style',''],['colors','Color Settings',''],['fonts','Font Settings',''],['preferences','View Preference','Ctrl+V'],['zoomIn','Zoom In','Z'],['zoomOut','Zoom Out','X'],['fit','Fit to Screen','I'],['enlarge','Toggle Enlarge','E'],['reverse','Reverse Side','Ctrl+R'],['reverseDraw','Player Reverse Draw','Ctrl+Shift+R']])add('View',...a);
+ for(const [key,label,shortcut] of [['numbers','Player Number','N'],['types','Player Type','H'],['stamina','Stamina','S'],['view','View Area','V'],['body','Body Shadow','D'],['catchable','Catchable Area','C'],['tackle','Tackle Area','T'],['kick','Kickable Area',''],['point','Pointto','F'],['attention','Attentionto','Ctrl+A'],['score','Score Board','Ctrl+T'],['ball','Ball','Ctrl+B'],['players','Players','Ctrl+P'],['landmarks','Flags','Ctrl+F'],['offside','Offside Lines','O']])add('View','flag:'+key,'Show '+label,shortcut);
+ add('View','kickAccel','Show Kick Accel Area','K','Exact kick-acceleration diagram is not ported; Kickable Area is available');add('View','focusPoint','Show Focus Point','J','This parser has no focus-point record');add('View','teamGraphics','Show Team Graphic','Shift+T','Team-graphic XPM messages are not imported');
+ for(const side of ['l','r'])for(let n=1;n<=11;n++)add('View','select:'+side+':'+n,'Select '+(side==='l'?'Left':'Right')+' '+n,(side==='r'?'Ctrl+':'')+(n===10?'0':n===11?'-':n));
+ add('View','focus:ball','Focus Ball','B');add('View','focus:player','Focus Player','P');add('View','auto:all','Select auto all','A');add('View','auto:l','Toggle auto left','L');add('View','auto:r','Toggle auto right','R');add('View','unselect','Unselect','U');
+ for(const a of [['formation','Formation Editor','Ctrl+Alt+F'],['labels','Label Editor','Ctrl+Alt+L'],['simpleLabels','Simple Label Selector','Ctrl+Alt+S'],['mark','Mark Assignment','Ctrl+Alt+M']])add('Editor',...a,'Native formation/label formats and editor workflow are not ported');
+ add('Debug','debugMessages','Debug Message','Ctrl+D','Requires the team debug logs; OCL and RCG are not replacements');add('Debug','debugServer','Start/Stop the debug server','Ctrl+S','Requires a separate compatible debug-server bridge');add('Help','about','About');add('Help','shortcuts','Shortcut Keys');
+ for(const [name,actions] of Object.entries(menus)){const details=document.createElement('details');details.className='sw-menu';const summary=swText('summary',name),popup=document.createElement('div');popup.className='sw-popup';for(const a of actions){const b=document.createElement('button');b.type='button';b.dataset.swAction=a.id;b.disabled=!!a.disabled;b.title=a.disabled||a.label+(a.key?' ('+a.key+')':'');const check=swText('span','');check.className='sw-check';b.append(check,swText('span',a.label),swText('kbd',a.key));b.onclick=()=>swAction(a.id);popup.append(b);}details.append(summary,popup);summary.onclick=()=>document.querySelectorAll('.sw-menu').forEach(other=>{if(other!==details)other.open=false;});$('swMenus').append(details);}
+ const tool=(bar,id,label,icon)=>{const b=swText('button',icon);b.type='button';b.className='sw-tool';b.dataset.swAction=id;b.title=label+(swActions.find(a=>a.id===id)?.key?' ('+swActions.find(a=>a.id===id).key+')':'');b.setAttribute('aria-label',label);b.onclick=()=>swAction(id);$(bar).append(b);};
+ for(const a of [['open','Open rcg file','📂'],['save','Save rcg file','▣'],['png','Save Image','▧'],['connect','Connect','↗'],['disconnect','Disconnect','⊗'],['zoomIn','Zoom In','⊕'],['zoomOut','Zoom Out','⊖'],['fit','Fit to Screen','⛶'],['reverse','Reverse Side','⇄'],['flag:numbers','Player Number','№'],['flag:view','View Area','◔'],['flag:stamina','Stamina','S'],['flag:offside','Offside Lines','⋮'],['detail','Object Detail','ⓘ'],['fullscreen','Full Screen','□']])tool('swMainTools',...a);
+ for(const [id,label,,icon] of replay.slice(0,9))tool('swPlayTools',id,label,icon);const label=swText('label','Cycle '),input=document.createElement('input');input.type='number';input.id='swCycleInput';input.min=0;input.value=0;input.setAttribute('aria-label','Go to cycle');input.onchange=()=>{const items=swItems();if(!items.length)return;const cycle=Number(input.value);let nearest=0;for(let i=1;i<items.length;i++)if(Math.abs(items[i].frame.cycle-cycle)<Math.abs(items[nearest].frame.cycle-cycle))nearest=i;swSeek(nearest);};label.append(input);$('swPlayTools').append(label);tool('swPlayTools','live','Live Mode','●');
+ for(const speed of [.1,.25,16,32]){const option=new Option(speed+'×',String(speed));$('monitorSpeed').add(option);}
+ $('swFullscreen').onclick=()=>swAction('fullscreen');$('swDialogClose').onclick=()=>{swView.dialog=null;$('swDialog').hidden=true;$('matchMonitor').focus({preventScroll:true});};$('swDialog').onclick=e=>{if(e.target===$('swDialog'))$('swDialogClose').click();};
+ const canvas=$('pitch');let drag=null;
+ canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;$('matchMonitor').focus({preventScroll:true});const t=swView.transform;if(!t)return;const rect=canvas.getBoundingClientRect(),px=(e.clientX-rect.left)*t.W/rect.width,py=(e.clientY-rect.top)*t.H/rect.height,x=t.origin[0]+(px-t.W/2)/(t.s*t.sign),y=t.origin[1]+(py-t.H/2)/(t.s*t.sign);const candidates=(swView.frame?.players||[]).map(p=>({p,d:Math.hypot(p[2]-x,p[3]-y)})).sort((a,b)=>a.d-b.d);if(!e.shiftKey&&candidates[0]?.d*t.s<20){swSelect(candidates[0].p[0],candidates[0].p[1]);return;}drag={x:e.clientX,y:e.clientY,pan:[...swView.pan]};swView.focus=null;canvas.setPointerCapture(e.pointerId);});
+ canvas.addEventListener('pointermove',e=>{const t=swView.transform;if(!t)return;const rect=canvas.getBoundingClientRect();if(drag){swView.pan=[drag.pan[0]-(e.clientX-drag.x)*t.W/rect.width/(t.s*t.sign),drag.pan[1]-(e.clientY-drag.y)*t.H/rect.height/(t.s*t.sign)];swRedraw();}const x=t.origin[0]+((e.clientX-rect.left)*t.W/rect.width-t.W/2)/(t.s*t.sign),y=t.origin[1]+((e.clientY-rect.top)*t.H/rect.height-t.H/2)/(t.s*t.sign);$('swStatusXY').textContent='('+x.toFixed(2)+', '+y.toFixed(2)+')';});
+ for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>drag=null);
+ canvas.addEventListener('wheel',e=>{e.preventDefault();swAction(e.deltaY<0?'zoomIn':'zoomOut');},{passive:false});
+ canvas.addEventListener('contextmenu',e=>{e.preventDefault();const menu=[...document.querySelectorAll('.sw-menu')].find(m=>m.querySelector('summary').textContent==='View');swCloseMenus();menu.open=true;});
+ document.addEventListener('pointerdown',e=>{if(!e.target.closest('.sw-menu'))swCloseMenus();});
+ const reserved=new Set(['Ctrl+1','Ctrl+2','Ctrl+3','Ctrl+4','Ctrl+5','Ctrl+6','Ctrl+7','Ctrl+8','Ctrl+9','Ctrl+0','Ctrl+T']);
+ document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){swCloseMenus();if(!$('swDialog').hidden)$('swDialogClose').click();return;}
+  const focused=document.activeElement,inside=$('matchMonitor').contains(focused);if(!inside||focused?.matches('input,select,textarea,[contenteditable=true]')||!$('swDialog').hidden)return;
+  const key=({ArrowLeft:'Left',ArrowRight:'Right',ArrowUp:'Up',ArrowDown:'Down',' ':'Space',Enter:'Return'})[e.key]||((e.key.length===1)?e.key.toUpperCase():e.key);const shortcut=(e.ctrlKey||e.metaKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+key;
+  if(reserved.has(shortcut))return;if(e.altKey&&key==='Return'){e.preventDefault();swAction('fullscreen');return;}
+  const action=swActions.find(a=>a.key===shortcut);if(action&&!action.disabled){e.preventDefault();swAction(action.id);}
+ });
+ // Disconnect affects viewing only; reconnect remains explicit even while reports poll.
+ swChecks();
+}
+if(typeof document.createElement==='function')swInit();
 
 drawPitch(null);
 
