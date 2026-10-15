@@ -41,3 +41,50 @@ class NativeTests(unittest.TestCase):
     with self.assertRaises(urllib.error.HTTPError) as e:urllib.request.urlopen(req)
     self.assertEqual(e.exception.code,403)
    finally:http.shutdown();http.server_close();thread.join()
+
+class ResponsiveTransport(unittest.TestCase):
+ def test_slow_video_receiver_cannot_block_clicks(self):
+  from native_desktop import relay_stream
+  client,browser=socket.socketpair();peer,server=socket.socketpair()
+  browser.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,4096)
+  server.settimeout(2);client.settimeout(2)
+  relay=threading.Thread(target=relay_stream,args=(browser,peer),kwargs={'lifetime':3},daemon=True)
+  def video():
+   try:server.sendall(b'v'*2000000)
+   except OSError:pass
+  producer=threading.Thread(target=video,daemon=True)
+  try:
+   relay.start();producer.start();time.sleep(.1)
+   # The browser deliberately does not consume any image data.
+   start=time.monotonic();client.sendall(b'click')
+   self.assertEqual(server.recv(5),b'click')
+   self.assertLess(time.monotonic()-start,.5)
+  finally:
+   for s in (client,browser,peer,server):s.close()
+   relay.join(1);producer.join(1)
+ def test_stale_video_queue_disconnects_instead_of_growing(self):
+  from native_desktop import relay_stream
+  client,browser=socket.socketpair();peer,server=socket.socketpair()
+  browser.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,4096);server.settimeout(.5)
+  relay=threading.Thread(target=relay_stream,args=(browser,peer),kwargs={'lifetime':3,'lag_limit':.15},daemon=True)
+  try:
+   relay.start()
+   try:server.sendall(b'v'*300000)
+   except socket.timeout:pass
+   relay.join(.8);self.assertFalse(relay.is_alive())
+  finally:
+   for s in (client,browser,peer,server):s.close()
+ def test_live_frame_burst_coalesces_to_latest_without_losing_parameters(self):
+  broker=MonitorBroker(0);client=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);client.settimeout(1)
+  try:
+   broker.bind('17');client.sendto(b'(dispinit version 5)\0',broker.socket.getsockname())
+   deadline=time.monotonic()+1
+   while not broker.clients and time.monotonic()<deadline:time.sleep(.005)
+   ident=next(iter(broker.clients));packets=[{'client':ident,'data':pack(('(show '+str(i)+')\0').encode())} for i in range(40)]
+   packets.append({'client':ident,'data':pack(b'(server_param fixture)\0')})
+   broker.exchange('17',{'epoch':broker.epoch,'packets':packets})
+   self.assertEqual(client.recv(65535),b'(server_param fixture)\0')
+   self.assertEqual(client.recv(65535),b'(show 39)\0')
+   client.settimeout(.05)
+   with self.assertRaises(socket.timeout):client.recv(65535)
+  finally:broker.close();client.close()

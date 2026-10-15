@@ -662,6 +662,7 @@ function stopSmoothLive(){
  smoothLive.raf=null;
 }
 function startSmoothLive(){
+ if(typeof document.createElement==='function'&&$('nativeMonitor'))return;
  if(typeof requestAnimationFrame!=='function'||smoothLive.raf!==null||monitorSource!=='server'||$('monitorMode').value!=='live')return;
  const tick=()=>{
   smoothLive.raf=null;
@@ -682,6 +683,7 @@ function stopDirectLive(preserve=false){
  if(directLive.watchdog!==null)clearTimeout(directLive.watchdog);directLive.watchdog=null;
 }
 function startDirectLive(){
+ if(typeof document.createElement==='function'&&$('nativeMonitor'))return;
  if(swView.disconnected)return;
  if(typeof EventSource==='undefined'||!job||!report||report.demo)return;
  if(!['queued','running'].includes(report.status)){stopDirectLive(true);return;}
@@ -922,6 +924,7 @@ function swDrawPitch(frame){
  swDrawDebug(c,X,Y,s,frame);swDrawFormation(c,X,Y,s);
 }
 function swRefreshStatus(){
+ if(typeof document.createElement==='function'&&$('nativeMonitor'))return;
  const frame=swView.frame,p=swSelected();$('swStatusMode').textContent=frame?'['+frame.cycle+'] '+(frame.mode??'')+' • '+(isLiveView()?'Monitor':'LogPlayer'):'Ready';
  $('swStatusPlayer').textContent=p?(p[0]==='l'?'Left':'Right')+' #'+p[1]+' ('+p[2].toFixed(2)+', '+p[3].toFixed(2)+')':'No player selected';
  if($('swCycleInput')&&document.activeElement!==$('swCycleInput'))$('swCycleInput').value=frame?.cycle??0;
@@ -1140,7 +1143,7 @@ function swWorkbenchInit(){
  $('swFormationSample').onchange=()=>{if(!swView.formation)return;swView.formation.index=Number($('swFormationSample').value);swFormationControls();swRedraw();};$('swFormationEdit').onchange=()=>{if(swView.formation)swView.formation.active=$('swFormationEdit').checked;};$('swFormationShow').onchange=()=>{if(swView.formation)swView.formation.visible=$('swFormationShow').checked;swRedraw();};$('swFormationBackground').onchange=()=>{if(swView.formation)swView.formation.background=$('swFormationBackground').checked;swRedraw();};$('swFormationUndo').onclick=()=>{const f=swView.formation;if(f?.undo.length){f.samples=JSON.parse(f.undo.pop());swFormationControls();swRedraw();}};$('swFormationSave').onclick=()=>{const f=swView.formation;if(!f)return;try{save(new Blob([swFormationExport(f)],{type:'text/plain'}),f.name||'formation.conf');}catch(e){$('swFormationInfo').textContent=e.message;}};
 }
 
-if(typeof document.createElement==='function')swInit();
+if(typeof document.createElement==='function'&&!$('nativeMonitor'))swInit();
 
 drawPitch(null);
 

@@ -4,7 +4,7 @@ let rfb,stopped=false,retry;
 const status=document.getElementById('status');
 function connect(){
  const url=new URL('/native/socket',location.href);url.protocol=location.protocol==='https:'?'wss:':'ws:';
- rfb=new RFB(document.getElementById('desktop'),url.href);rfb.scaleViewport=true;rfb.resizeSession=false;rfb.qualityLevel=7;rfb.compressionLevel=2;rfb.focusOnClick=true;
+ rfb=new RFB(document.getElementById('desktop'),url.href);rfb.scaleViewport=true;rfb.resizeSession=false;rfb.qualityLevel=4;rfb.compressionLevel=1;rfb.focusOnClick=true;
  rfb.addEventListener('connect',()=>{status.textContent='';parent.postMessage({type:'native-connected'},location.origin)});
  rfb.addEventListener('disconnect',()=>{if(stopped)return;status.textContent='Connection lost; reconnecting…';retry=setTimeout(connect,1500)});
  rfb.addEventListener('securityfailure',()=>{status.textContent='Authentication failed';stopped=true});

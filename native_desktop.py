@@ -3,7 +3,7 @@
 One session is shared by the Arena administrator. The VNC and UDP listeners
 are loopback-only; all web routes require the site's existing authentication.
 """
-import atexit,json,mimetypes,os,re,select,shutil,socket,subprocess,threading,time
+import atexit,collections,json,mimetypes,os,re,select,shutil,socket,subprocess,threading,time
 from pathlib import Path
 from urllib.parse import urlparse,parse_qs,unquote
 from native_tunnel import MonitorBroker
@@ -40,17 +40,17 @@ class Desktop:
                     p=subprocess.Popen(argv,cwd=self.root/'files',env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
                 self.processes.append(p);return p
             try:
-                launch(['Xvfb',':91','-screen','0','1280x900x24','-nolisten','tcp','-ac'])
+                launch(['Xvfb',':91','-screen','0','1024x720x16','-nolisten','tcp','-ac'])
                 self.wait(lambda:Path('/tmp/.X11-unix/X91').exists())
                 launch(['openbox','--sm-disable'])
-                launch(['x11vnc','-display',':91','-localhost','-rfbport','5901','-forever','-shared','-nopw','-noxdamage','-quiet'])
+                launch(['x11vnc','-display',':91','-localhost','-rfbport','5901','-forever','-shared','-nopw','-threads','-wait','80','-defer','15','-quiet'])
                 self.wait(lambda:self.port_open(5901))
                 launch(['websockify','127.0.0.1:6081','127.0.0.1:5901'])
                 self.wait(lambda:self.port_open(6081))
-                self.app=launch(['soccerwindow2','--geometry','1260x850+0+0','--host','127.0.0.1','--port','16000','--client-version','5','--debug-server-mode','--debug-log-dir',str(self.root/'files')])
+                self.app=launch(['soccerwindow2','--geometry','1004x670+0+0','--host','127.0.0.1','--port','16000','--client-version','5','--debug-server-mode','--debug-log-dir',str(self.root/'files')])
                 self.wait(lambda:bool(self.windows()))
                 self.main_window=self.windows()[0]
-                self.xdo('windowsize',self.main_window,1280,860)
+                self.xdo('windowsize',self.main_window,1024,680)
                 self.xdo('windowactivate',self.main_window)
             except Exception:self.close();raise
     def wait(self,fn):
@@ -124,18 +124,49 @@ def websocket(h):
             if len(response)>16384:raise OSError('VNC handshake too large')
         if not response.startswith(b'HTTP/1.1 101') and not response.startswith(b'HTTP/1.0 101'):raise OSError('VNC handshake rejected')
         h.wfile.write(response);h.wfile.flush();h.close_connection=True
-        peer.settimeout(15);h.connection.settimeout(15)
-        until=time.monotonic()+3600
-        try:
-            while time.monotonic()<until:
-                readable,_,_=select.select([peer,h.connection],[],[],15)
-                if not readable:continue
-                DESKTOP.last_used=time.monotonic()
-                for source in readable:
-                    data=source.recv(65536)
-                    if not data:return
-                    (h.connection if source is peer else peer).sendall(data)
-        except (OSError,TimeoutError):return
+        relay_stream(h.connection,peer,touch=lambda:setattr(DESKTOP,'last_used',time.monotonic()))
+
+
+def relay_stream(browser,peer,touch=lambda:None,lifetime=3600,lag_limit=5):
+    """Fair duplex transport: a blocked image upload must not block mouse input.
+
+    Retain WebSocket bytes in order; on excessive lag close the connection
+    instead of dropping bytes within a frame. noVNC reconnects to the same app.
+    """
+    sockets=(browser,peer);queues={s:collections.deque() for s in sockets};sizes={s:0 for s in sockets}
+    for sock in sockets:
+        sock.setblocking(False)
+        if sock.family in (socket.AF_INET,socket.AF_INET6):
+            sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
+            sock.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,16384)
+    limits={browser:131072,peer:32768};until=time.monotonic()+lifetime
+    try:
+        while time.monotonic()<until:
+            now=time.monotonic()
+            if any(q and now-q[0][1]>lag_limit for q in queues.values()):return
+            reads=[s for s in sockets if sizes[peer if s is browser else browser]<limits[peer if s is browser else browser]]
+            writes=[s for s in (peer,browser) if queues[s]]
+            readable,writable,_=select.select(reads,writes,[],.1)
+            if readable or writable:touch()
+            # Always handle input before more framebuffer data.
+            for source in sockets:
+                if source not in readable:continue
+                target=peer if source is browser else browser
+                try:data=source.recv(min(16384,limits[target]-sizes[target]))
+                except BlockingIOError:continue
+                if not data:return
+                queues[target].append([memoryview(data),time.monotonic()]);sizes[target]+=len(data)
+            for target in (peer,browser):
+                if target not in writable:continue
+                chunk,stamp=queues[target][0]
+                try:n=target.send(chunk)
+                except BlockingIOError:continue
+                if not n:return
+                sizes[target]-=n
+                if n==len(chunk):queues[target].popleft()
+                else:queues[target][0]=[chunk[n:],stamp]
+    except (OSError,TimeoutError):return
+
 
 def handle(h):
     path=urlparse(h.path).path

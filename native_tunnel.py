@@ -29,6 +29,7 @@ class MonitorBroker:
             if target!=self.target:
                 self.target=target;self.epoch+=1;self.queue.clear()
                 for ident,c in self.clients.items():
+                    c.pop('show',None);c['last_show']=0
                     if c.get('init'):self.queue.append({'client':ident,'data':pack(c['init'])})
     def run(self):
         while not self.stopped.is_set():
@@ -58,8 +59,15 @@ class MonitorBroker:
             if body.get('epoch')==self.epoch:
                 for data in debug:
                     if len(data)<8192:self.debug_socket.sendto(data,('127.0.0.1',6032))
+                now=time.monotonic()
                 for ident,data in decoded:
-                    if ident in self.clients:self.socket.sendto(data,self.clients[ident]['address'])
+                    c=self.clients.get(ident)
+                    if c is None:continue
+                    if data.startswith(b'(show '):c['show']=data
+                    else:self.socket.sendto(data,c['address'])
+                for c in self.clients.values():
+                    if c.get('show') and now-c.get('last_show',0)>=.1:
+                        self.socket.sendto(c.pop('show'),c['address']);c['last_show']=now
             pending=list(self.queue);self.queue.clear()
             return {'active':True,'epoch':self.epoch,'packets':pending}
     def close(self):self.stopped.set();self.socket.close();self.debug_socket.close()
@@ -68,7 +76,7 @@ class NativeTunnel:
     """Match-side tunnel. HTTP failure cannot block a match or its log writer."""
     def __init__(self,exchange,server_port=6000):
         self.exchange=exchange;self.port=server_port;self.stop=threading.Event();self.lock=threading.Lock()
-        self.clients={};self.epoch=None;self.generation=0;self.last_generation=-1;self.debug_enabled=False;self.debug_socket=None
+        self.clients={};self.epoch=None;self.generation=0;self.last_generation=-1;self.debug_enabled=False;self.debug_socket=None;self.active=False
         self.thread=threading.Thread(target=self.run,daemon=True);self.thread.start()
     def reset(self,debug=False):
         with self.lock:self.generation+=1;self.debug_enabled=debug
@@ -96,20 +104,24 @@ class NativeTunnel:
                         try:debug.append(pack(self.debug_socket.recvfrom(8191)[0]))
                         except (BlockingIOError,OSError):break
                 for ident,c in list(self.clients.items()):
-                    for _ in range(16):
+                    for _ in range(128):
                         try:data,addr=c['socket'].recvfrom(65535)
                         except BlockingIOError:break
                         except OSError:break
                         if addr[0]!='127.0.0.1':continue
                         c['address']=addr
-                        outgoing.append({'client':ident,'data':pack(data)})
+                        if data.startswith(b'(show '):c['show']=data
+                        else:outgoing.append({'client':ident,'data':pack(data)})
                         if len(outgoing)>=MAX_PACKETS:break
                     if len(outgoing)>=MAX_PACKETS:break
+                    if c.get('show') and time.monotonic()-c.get('last_show',0)>=.1 and len(outgoing)<MAX_PACKETS:
+                        outgoing.append({'client':ident,'data':pack(c.pop('show'))});c['last_show']=time.monotonic()
                     # Initial handshake may precede server startup; retry only before any response.
                     if c['address'][1]==self.port and c.get('init') and time.monotonic()-c['sent']>1:
                         c['socket'].sendto(c['init'],c['address']);c['sent']=time.monotonic()
                 try:
-                    answer=self.exchange({'epoch':self.epoch,'packets':outgoing,'debug':debug});outgoing=[]
+                    answer=self.exchange({'epoch':self.epoch,'packets':outgoing,'debug':debug if self.active else []});outgoing=[]
+                    self.active=bool(answer.get('active'))
                     if answer.get('epoch')!=self.epoch:
                         self.clear();inits.clear();self.epoch=answer.get('epoch')
                     if not answer.get('active'):
@@ -123,7 +135,7 @@ class NativeTunnel:
                         self.command(ident,data)
                 except Exception:
                     outgoing=[];self.stop.wait(.5)
-                self.stop.wait(.04)
+                self.stop.wait(.08)
         finally:
             self.clear()
             if self.debug_socket:self.debug_socket.close()
