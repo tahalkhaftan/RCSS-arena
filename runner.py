@@ -261,7 +261,8 @@ def run_job(job,write):
                 native=getattr(job.get('live'),'native',None)
                 if native:native.reset(config.get('debug_logging',False))
                 live_options={'live':lambda frame:job['live'].submit(r,g,frame)} if job.get('live') else {}
-                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress,native=native,**live_options))
+                if native:live_options['native']=native
+                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress,**live_options))
                 except Cancelled: entry.update(status='cancelled')
                 except Exception as exc:
                     entry.update(status='failed',error=str(exc))
