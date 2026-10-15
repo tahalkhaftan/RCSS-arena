@@ -74,7 +74,7 @@ def handle_worker(handler):
         if native and handler.command=='POST':
             from native_desktop import DESKTOP,json_body as native_body
             info=native_body(handler)
-            handler.send(200,DESKTOP.broker.exchange('personal:'+native[1],info) if DESKTOP.broker else {'active':False,'epoch':0,'packets':[]});return True
+            handler.send(200,DESKTOP.exchange('personal:'+native[1],info));return True
         if path.endswith('/live') and handler.command=='POST':
             from live import RELAY
             info=json_body(handler);ident=str(info.get('id',''))

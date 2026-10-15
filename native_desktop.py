@@ -68,8 +68,12 @@ class Desktop:
     def windows(self):
         if not self.app:return []
         return self.xdo('search','--onlyvisible','--pid',self.app.pid).stdout.split()
+    def exchange(self,target,body):
+        with self.lock:
+            return self.broker.exchange(target,body) if self.broker else {'active':False,'epoch':0,'packets':[]}
     def connect(self,target):
         self.start();self.broker.bind(target)
+        self.xdo('windowactivate',self.main_window)
         self.xdo('key','--clearmodifiers','ctrl+c') # Native Monitor > Connect shortcut (verified upstream).
     def close_tool(self):
         self.start()
@@ -77,7 +81,7 @@ class Desktop:
         active=self.xdo('getactivewindow').stdout.strip();windows=self.windows()
         if active in windows and active!=self.main_window:self.xdo('key','--clearmodifiers','alt+F4')
     def open_file(self,path):
-        self.start();self.xdo('key','--clearmodifiers','ctrl+o');time.sleep(.2)
+        self.start();self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers','ctrl+o');time.sleep(.2)
         self.xdo('type','--clearmodifiers','--delay','1',str(path));self.xdo('key','Return')
     def close(self):
         with self.lock:
@@ -142,7 +146,7 @@ def handle(h):
         if h.command!='POST' or not header.startswith('Bearer ') or not valid_token(tunnel[1],header[7:]):h.send(403,{'error':'Invalid native token'});return True
         try:
             body=json_body(h)
-            result=DESKTOP.broker.exchange(tunnel[1],body) if DESKTOP.broker else {'active':False,'epoch':0,'packets':[]}
+            result=DESKTOP.exchange(tunnel[1],body)
             h.send(200,result)
         except (ValueError,KeyError,TypeError):h.send(400,{'error':'Invalid native packet batch'})
         return True
