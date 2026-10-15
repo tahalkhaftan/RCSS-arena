@@ -2,7 +2,7 @@
 import collections,hashlib,hmac,json,os,re,tempfile,threading,time,uuid
 from urllib.parse import urlparse,parse_qs
 CHUNK=1024*1024
-ALLOWED=re.compile(r'/api/(?:teams|tests(?:/[a-f0-9]{32}(?:/cancel|/logs\.zip|/build-log/(?:left|right)|/replay/\d+/\d+)?)?|builds(?:/[a-f0-9]{32}(?:/log)?)?)$')
+ALLOWED=re.compile(r'/api/(?:teams|tests(?:/[a-f0-9]{32}(?:/cancel|/logs\.zip|/build-log/(?:left|right)|/(?:replay|rcg)/\d+/\d+)?)?|builds(?:/[a-f0-9]{32}(?:/log)?)?)$')
 
 
 def worker_token():

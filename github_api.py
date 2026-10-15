@@ -36,7 +36,14 @@ class GitHub:
         with self.open(path,method,body) as r:
             data=r.read();return json.loads(data) if data else None
     def release(self,ident):return self.json('/releases/'+str(int(ident)))
-    def assets(self,ident):return {x['name']:x for x in self.json('/releases/'+str(int(ident))+'/assets?per_page=100')}
+    def assets(self,ident):
+        result={};page=1
+        while True:
+            path='/releases/'+str(int(ident))+'/assets?per_page=100'+('&page='+str(page) if page>1 else '')
+            rows=self.json(path)
+            result.update({x['name']:x for x in rows})
+            if len(rows)<100:return result
+            page+=1
     def read_asset(self,asset):
         with self.open('/releases/assets/'+str(int(asset['id'])),binary=True) as r:return r.read()
     def put(self,ident,name,content,ctype='application/octet-stream'):

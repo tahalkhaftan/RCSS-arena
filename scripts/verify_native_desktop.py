@@ -11,6 +11,17 @@ try:
  DESKTOP.wait(lambda:len(DESKTOP.windows())>1)
  DESKTOP.close_tool();DESKTOP.wait(lambda:len(DESKTOP.windows())==1)
  assert DESKTOP.app.poll() is None,'Closing an editor killed the main monitor'
+ # The website sees the editor's actual current state and exports a real native model.
+ DESKTOP.formation_command('new')
+ DESKTOP.wait(lambda:DESKTOP.formation_preview().get('available'))
+ preview=DESKTOP.formation_preview();assert len(preview['players'])==11
+ export=DESKTOP.root/'files'/'website-formation.conf'
+ DESKTOP.formation_command('export',export)
+ import json
+ model=json.loads(export.read_text());assert len(model['role'])==11 and model['data']
+ DESKTOP.formation_command('open',export)
+ assert DESKTOP.formation_preview()['available']
+ DESKTOP.close_tool()
  # A real native file-open action. Small valid rcg fixture, no browser parser.
  rcg=DESKTOP.root/'files'/'native-fixture.rcg'
  rcg.write_text('ULG5\n(team 0 Blue Red 0 0)\n(playmode 0 before_kick_off)\n(show 1 ((b) 0 0 0 0))\n')

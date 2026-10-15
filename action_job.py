@@ -1,5 +1,5 @@
 """Run on GitHub-hosted Ubuntu only; publish per-match reports and final ZIP."""
-import json,os,threading,time
+import gzip,json,os,threading,time
 from pathlib import Path
 from github_api import storage_client,is_arena_release
 from app import extract,validate
@@ -34,7 +34,7 @@ def main():
     if 'live.json' in assets:
         try:publisher=LivePublisher(json.loads(gh.read_asset(assets['live.json'])))
         except Exception:print('Direct live feed unavailable; periodic reports remain enabled.',flush=True)
-    published_replays=set();published_build_logs=set()
+    published_replays=set();published_rcgs=set();published_build_logs=set()
     def write(job):
         for side,build in state.get('builds',{}).items():
             if side in published_build_logs or build.get('status') not in ('failed','completed','cancelled'):continue
@@ -47,7 +47,15 @@ def main():
         # Publish each finished game's replay before proceeding to the next game.
         for match in state['matches']:
             key=(match['round'],match['game'])
-            if key in published_replays or not match.get('replay_available'):continue
+            if not match.get('replay_available'):continue
+            if key not in published_rcgs:
+                try:
+                    from native_assets import local_rcg,rcg_asset_name
+                    raw=local_rcg({'root':root},*key)
+                    gh.put(ident,rcg_asset_name(*key),gzip.compress(raw.read_bytes(),mtime=0),'application/gzip')
+                    published_rcgs.add(key)
+                except Exception:print('Native RCG publication delayed; the archive remains available.',flush=True)
+            if key in published_replays:continue
             path=root/'logs'/f'round-{key[0]:03d}-game-{key[1]:03d}'/'replay.json.gz'
             try:
                 gh.put(ident,asset_name(*key),path.read_bytes(),'application/gzip')

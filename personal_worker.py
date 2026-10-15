@@ -103,6 +103,19 @@ def local_handler(data_dir):
                     p=root/'build.log'
                     return self.send(200,p.read_bytes() if p.exists() else b'','text/plain; charset=utf-8')
                 return self.send(200,json.loads((root/'state.json').read_text()))
+            raw_match=re.fullmatch(r'/api/tests/([a-f0-9]{32})/rcg/(\d+)/(\d+)',path)
+            if raw_match:
+                if not self.auth():return
+                ident,r,g=raw_match.groups();r,g=int(r),int(g);job=app.JOBS.get(ident)
+                if not job or not 1<=r<=500 or not 1<=g<=500:return self.send(404,{'error':'Local game not found'})
+                from native_assets import local_rcg
+                try:p=local_rcg(job,r,g)
+                except LookupError as exc:return self.send(409,{'error':str(exc)})
+                self.send_response(200);self.send_header('Content-Type','application/x-rcg')
+                if p.suffix!='.gz':self.send_header('Content-Length',str(p.stat().st_size))
+                self.end_headers()
+                with (gzip.open(p,'rb') if p.suffix=='.gz' else p.open('rb')) as stream:shutil.copyfileobj(stream,self.wfile)
+                return
             m=re.fullmatch(r'/api/tests/([a-f0-9]{32})/replay/(\d+)/(\d+)',path)
             if m:
                 if not self.auth():return

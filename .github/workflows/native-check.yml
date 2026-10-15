@@ -4,6 +4,8 @@ on:
     paths:
       - 'Dockerfile'
       - 'native_*.py'
+      - 'native/**'
+      - 'scripts/patch_native_bridge.py'
       - 'static/native/**'
       - 'scripts/verify_native_desktop.py'
       - 'scripts/serve_native_latency.py'

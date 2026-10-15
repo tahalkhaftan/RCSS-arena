@@ -1,9 +1,9 @@
-"""Actual unmodified SoccerWindow2 in Xvfb/Openbox, transported by noVNC.
+"""Original SoccerWindow2 with an optional editor bridge in Xvfb/Openbox, transported by noVNC.
 
 One session is shared by the Arena administrator. The VNC and UDP listeners
 are loopback-only; all web routes require the site's existing authentication.
 """
-import atexit,collections,json,mimetypes,os,re,select,shutil,socket,subprocess,threading,time
+import atexit,collections,gzip,json,uuid,mimetypes,os,re,select,shutil,socket,subprocess,threading,time
 from pathlib import Path
 from urllib.parse import urlparse,parse_qs,unquote
 from native_tunnel import MonitorBroker
@@ -11,7 +11,7 @@ from native_tunnel import MonitorBroker
 ROOT=Path(__file__).resolve().parent
 class Desktop:
     def __init__(self):
-        self.lock=threading.RLock();self.processes=[];self.broker=None;self.app=None;self.last_used=0
+        self.lock=threading.RLock();self.control_lock=threading.Lock();self.processes=[];self.broker=None;self.app=None;self.last_used=0
         self.root=Path(os.environ.get('ARENA_DESKTOP_DIR','/tmp/arena-desktop'));self.env=None
         atexit.register(self.close)
         threading.Thread(target=self.reap,daemon=True).start()
@@ -33,6 +33,7 @@ class Desktop:
             for k in list(env):
                 if any(w in k for w in ('TOKEN','PASSWORD','SECRET')):env.pop(k,None)
             env.update(DISPLAY=':91',HOME=str(self.root),QT_X11_NO_MITSHM='1',QT_STYLE_OVERRIDE='Fusion')
+            env.update(ARENA_FORMATION_PREVIEW=str(self.root/'formation-preview.json'),ARENA_FORMATION_COMMAND=str(self.root/'formation-command.json'))
             self.env=env
             self.broker=MonitorBroker()
             def launch(argv):
@@ -81,8 +82,39 @@ class Desktop:
         active=self.xdo('getactivewindow').stdout.strip();windows=self.windows()
         if active in windows and active!=self.main_window:self.xdo('key','--clearmodifiers','alt+F4')
     def open_file(self,path):
-        self.start();self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers','ctrl+o');time.sleep(.2)
+        try:
+            with (gzip.open(path,'rb') if path.suffix=='.gz' else path.open('rb')) as source:
+                if source.read(3)!=b'ULG':raise ValueError('Choose an original RCG file.')
+        except OSError as exc:raise ValueError('Cannot read this RCG file.') from exc
+        self.start()
+        if self.broker:self.broker.bind(None)
+        self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers','ctrl+o');time.sleep(.2)
         self.xdo('type','--clearmodifiers','--delay','1',str(path));self.xdo('key','Return')
+    def formation_command(self,action,path=None):
+        self.start()
+        with self.control_lock:
+            token=uuid.uuid4().hex;command=self.root/'formation-command.json';reply=self.root/'formation-command.json.reply'
+            payload={'id':token,'action':action}
+            if path:payload['path']=str(path)
+            temp=command.with_suffix('.tmp');temp.write_text(json.dumps(payload));temp.replace(command)
+            deadline=time.monotonic()+15
+            while time.monotonic()<deadline:
+                if reply.is_file():
+                    result=json.loads(reply.read_text())
+                    if result.get('id')==token:
+                        if not result.get('ok'):raise ValueError(result.get('error','Native editor operation failed'))
+                        return result
+                time.sleep(.06)
+            raise RuntimeError('The editor is busy; close any native file dialog and retry.')
+    def formation_preview(self):
+        path=self.root/'formation-preview.json'
+        if not self.app or self.app.poll() is not None or not path.is_file():return {'available':False}
+        return json.loads(path.read_text())
+    def file(self,name):
+        if not isinstance(name,str) or not name or name!=Path(name).name or name.startswith('.') or not re.fullmatch(r'[\w .,+()\-]+',name):raise ValueError('Invalid filename')
+        p=self.root/'files'/name
+        if p.is_symlink():raise ValueError('Symlinks are not supported')
+        return p
     def close(self):
         with self.lock:
             if self.broker:self.broker.close();self.broker=None
@@ -190,8 +222,9 @@ def handle(h):
             if path=='/native/status':
                 running=bool(DESKTOP.app and DESKTOP.app.poll() is None)
                 h.send(200,{'running':running,'target':DESKTOP.broker.target if DESKTOP.broker else None});return True
+            if path=='/native/formation':h.send(200,DESKTOP.formation_preview());return True
             if path=='/native/files':
-                DESKTOP.start();h.send(200,sorted(p.name for p in (DESKTOP.root/'files').iterdir() if p.is_file()));return True
+                DESKTOP.start();h.send(200,sorted(p.name for p in (DESKTOP.root/'files').iterdir() if p.is_file() and not p.name.startswith('.')));return True
             if path.startswith('/native/download/'):
                 DESKTOP.start();name=unquote(path.rsplit('/',1)[-1]);p=DESKTOP.root/'files'/name
                 if name!=Path(name).name or not p.is_file() or p.is_symlink():raise ValueError('File not found')
@@ -210,6 +243,35 @@ def handle(h):
                 body=json_body(h);target=str(body.get('id',''))
                 if not re.fullmatch(r'(\d+|personal:[a-f0-9]{32})',target):raise ValueError('Choose an Arena test first')
                 DESKTOP.connect(target);h.send(200,{'ok':True});return True
+            if path=='/native/formation/new':DESKTOP.formation_command('new');h.send(200,{'ok':True});return True
+            if path=='/native/formation/export':
+                body=json_body(h);DESKTOP.start();p=DESKTOP.file(body.get('name') or 'formation.conf')
+                if p.suffix.lower() not in ('.conf','.json'):raise ValueError('Use .conf or .json')
+                DESKTOP.formation_command('export',p);h.send(200,{'name':p.name});return True
+            if path=='/native/open-file':
+                body=json_body(h);DESKTOP.start();p=DESKTOP.file(body.get('name'))
+                if not p.is_file():raise ValueError('File not found')
+                if body.get('kind')=='formation':
+                    if p.suffix.lower() not in ('.conf','.json'):raise ValueError('Choose a .conf or .json formation')
+                    DESKTOP.formation_command('open',p)
+                elif p.suffix.lower() in ('.rcg','.gz'):DESKTOP.open_file(p)
+                else:raise ValueError('Choose an RCG or formation file')
+                h.send(200,{'name':p.name});return True
+            if path=='/native/open-game':
+                body=json_body(h);ident=str(body.get('id',''));execution=body.get('execution','cloud')
+                valid=re.fullmatch(r'\d+' if execution=='cloud' else r'[a-f0-9]{32}',ident)
+                if execution not in ('cloud','personal') or not valid:raise ValueError('Invalid test')
+                r,g=int(body.get('round',0)),int(body.get('game',0))
+                if not 1<=r<=500 or not 1<=g<=500:raise ValueError('Invalid game')
+                DESKTOP.start();p=DESKTOP.file(('personal-' if execution=='personal' else 'cloud-')+ident+f'-{r}-{g}.rcg')
+                from native_assets import cloud_rcg,personal_rcg
+                try:
+                    if execution=='personal':personal_rcg(ident,r,g,p)
+                    else:
+                        from github_api import storage_client
+                        cloud_rcg(storage_client(),ident,r,g,p)
+                except LookupError as exc:return h.send(409,{'error':str(exc)}) or True
+                DESKTOP.open_file(p);h.send(200,{'name':p.name});return True
             if path=='/native/close-tool':DESKTOP.close_tool();h.send(200,{'ok':True});return True
             if path=='/native/upload':
                 DESKTOP.start();query=parse_qs(urlparse(h.path).query);name=query.get('name',[''])[0]
