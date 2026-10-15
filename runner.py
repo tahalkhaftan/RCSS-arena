@@ -104,11 +104,12 @@ def monitor_snapshot(text, previous=None):
     return snapshot
 
 
-def run_match(config,teams,folder,cancel,progress=None,live=None):
+def run_match(config,teams,folder,cancel,progress=None,live=None,native=None):
     runtime=None;debug_tail=None
     if config.get('offline_logging') or config.get('debug_logging'):folder=folder/'server-logs'
     folder.mkdir(parents=True); procs=[]; files=[]
     env=os.environ.copy(); env.update(RCSS_HOST='127.0.0.1',RCSS_PORT='6000',RCSS_COACH_PORT='6001',RCSS_OLCOACH_PORT='6002')
+    if native:env['ARENA_NATIVE_DEBUG']='1'
     # Dedicated instance: one match uses the standard ports. No public UDP needed.
     opts={'auto_mode':'true','connect_wait':1000,'kick_off_wait':100,'game_over_wait':20,
           'half_time':300,'nr_normal_halfs':2,'nr_extra_halfs':0,'penalty_shoot_outs':'false',
@@ -257,8 +258,10 @@ def run_job(job,write):
                 def progress(info):
                     state['progress']=dict(info,round=r,game=g,match_index=len(state['matches'])+1)
                     write(job)
+                native=getattr(job.get('live'),'native',None)
+                if native:native.reset(config.get('debug_logging',False))
                 live_options={'live':lambda frame:job['live'].submit(r,g,frame)} if job.get('live') else {}
-                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress,**live_options))
+                try: entry.update(run_match(config,root/'teams',root/'logs'/f'round-{r:03d}-game-{g:03d}',cancel,progress,native=native,**live_options))
                 except Cancelled: entry.update(status='cancelled')
                 except Exception as exc:
                     entry.update(status='failed',error=str(exc))

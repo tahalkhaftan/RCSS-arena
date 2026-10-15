@@ -90,6 +90,8 @@ class Handler(BaseHandler):
     def do_GET(self):
         path=urlparse(self.path).path
         if handle_worker(self):return
+        from native_desktop import handle as handle_native
+        if handle_native(self):return
         if path in ('/','/index.html','/healthz'):return super().do_GET()
         if not self.auth():return
         if path=='/api/personal/status':return self.send(200,BRIDGE.status())
@@ -190,6 +192,8 @@ class Handler(BaseHandler):
     def do_POST(self):
         path=urlparse(self.path).path
         if handle_worker(self):return
+        from native_desktop import handle as handle_native
+        if handle_native(self):return
         live_match=re.fullmatch(r'/api/live/(\d+)',path)
         if live_match:
             ident=live_match[1];header=self.headers.get('Authorization','')

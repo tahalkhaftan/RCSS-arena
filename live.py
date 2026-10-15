@@ -69,6 +69,8 @@ class LivePublisher:
         u=urlparse(connection.get('url',''))
         if (u.scheme!='https' and not (allow_local and u.hostname=='127.0.0.1')) or not re.fullmatch(r'/api/live/\d+',u.path) or u.username or u.password:raise ValueError('Invalid live destination')
         self.opener=urllib.request.build_opener(NoRedirect())
+        from native_tunnel import NativeTunnel,http_exchange
+        self.native=NativeTunnel(http_exchange(connection))
         self.thread=threading.Thread(target=self.run,daemon=True);self.thread.start()
     def submit(self,round_number,game,frame):
         with self.lock:self.queue.append({'round':round_number,'game':game,'frame':frame,'captured_at':time.time()})
@@ -89,4 +91,5 @@ class LivePublisher:
                 self.stop.wait(1)
     def close(self):
         self.stop.set()
+        self.native.close()
         if self.thread:self.thread.join(timeout=.1)

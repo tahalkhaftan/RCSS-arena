@@ -1,3 +1,5 @@
+> مانیتور جدید از **SoccerWindow2 اصلی (Qt)** از طریق Xvfb/Openbox/noVNC استفاده می‌کند. پس از Deploy، دکمهٔ «اجرای SoccerWindow2» را بزن. راهنمای فایل‌ها، اتصال زنده، زبان، منابع و محدودیت‌های واقعی: [SOCCERWINDOW_WEB_FA.md](SOCCERWINDOW_WEB_FA.md).
+
 # RCSS Arena
 
 A mobile-friendly RoboCup Soccer Simulation 2D test portal. The web control plane runs on **Render Free**, while **GitHub Actions** runs RCSSServer 19.0.0 and the teams. The browser is not the match worker: closing it after submission does not stop the job.

@@ -1,0 +1,25 @@
+name: Verify original SoccerWindow2
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+      - 'native_*.py'
+      - 'static/native/**'
+      - 'scripts/verify_native_desktop.py'
+      - '.github/workflows/native-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build pinned original Qt desktop and noVNC
+        run: docker build -t arena-native .
+      - name: Verify native program within free-tier memory limit
+        run: |
+          docker run --rm --memory=512m --cpus=1 -e PYTHONPATH=/app -v "$PWD/scripts:/checks:ro" --entrypoint python3 arena-native /checks/verify_native_desktop.py

@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SoccerWindow2</title><style>html,body,#desktop{height:100%;margin:0;background:#16191e;overflow:hidden}#status{position:absolute;inset:0;display:grid;place-items:center;color:#eee;font:14px sans-serif;pointer-events:none}#status:empty{display:none}canvas{touch-action:none}</style><div id="desktop"></div><div id="status">Connecting to SoccerWindow2…</div><script type="module">
+import RFB from '/native/novnc/core/rfb.js';
+let rfb,stopped=false,retry;
+const status=document.getElementById('status');
+function connect(){
+ const url=new URL('/native/socket',location.href);url.protocol=location.protocol==='https:'?'wss:':'ws:';
+ rfb=new RFB(document.getElementById('desktop'),url.href);rfb.scaleViewport=true;rfb.resizeSession=false;rfb.qualityLevel=7;rfb.compressionLevel=2;rfb.focusOnClick=true;
+ rfb.addEventListener('connect',()=>{status.textContent='';parent.postMessage({type:'native-connected'},location.origin)});
+ rfb.addEventListener('disconnect',()=>{if(stopped)return;status.textContent='Connection lost; reconnecting…';retry=setTimeout(connect,1500)});
+ rfb.addEventListener('securityfailure',()=>{status.textContent='Authentication failed';stopped=true});
+}
+window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==parent)return;if(e.data?.type==='native-focus')rfb?.focus()});
+window.addEventListener('pagehide',()=>{stopped=true;clearTimeout(retry);rfb?.disconnect()});connect();
+</script></html>

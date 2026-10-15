@@ -70,6 +70,11 @@ def handle_worker(handler):
             BRIDGE.heartbeat(json_body(handler));handler.send(200,{'ok':True});return True
         if path.endswith('/poll') and handler.command=='POST':
             info=json_body(handler);handler.send(200,BRIDGE.claim(info.get('machine_id')));return True
+        native=re.fullmatch(r'/api/personal/worker/native/([a-f0-9]{32})',path)
+        if native and handler.command=='POST':
+            from native_desktop import DESKTOP,json_body as native_body
+            info=native_body(handler)
+            handler.send(200,DESKTOP.broker.exchange('personal:'+native[1],info) if DESKTOP.broker else {'active':False,'epoch':0,'packets':[]});return True
         if path.endswith('/live') and handler.command=='POST':
             from live import RELAY
             info=json_body(handler);ident=str(info.get('id',''))

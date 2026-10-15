@@ -37,6 +37,10 @@ def prepare_team(source, destination, log_dir, env, offline=True, debug=False):
         if offline and advertised('offline_logging'):options.append('--offline_logging')
         if debug and advertised('debug'):
             options.append('--debug')
+            if env.get('ARENA_NATIVE_DEBUG')=='1' and advertised('debug_server_connect'):
+                options.append('--debug_server_connect')
+                if advertised('debug_server_host'):options.extend(['--debug_server_host','127.0.0.1'])
+                if advertised('debug_server_port'):options.extend(['--debug_server_port','6032'])
             for key in ('debug_server_logging','debug_system','debug_world','debug_action','debug_intercept','debug_kick','debug_hold','debug_dribble','debug_pass','debug_cross','debug_shoot','debug_clear','debug_block','debug_mark','debug_positioning','debug_role','debug_plan','debug_team','debug_communication','debug_analyzer','debug_action_chain'):
                 if advertised(key):options.append('--'+key)
         if not options:continue

@@ -30,9 +30,7 @@ jobs:
         timeout-minutes: 3
         run: |
           npm install --prefix "$RUNNER_TEMP/arena-browser" --ignore-scripts --no-package-lock playwright@1.51.1
-          NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_monitor.cjs
-          CHROME_BIN=/usr/bin/google-chrome NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_soccerwindow.cjs
-          CHROME_BIN=/usr/bin/google-chrome NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_workbench.cjs
+          CHROME_BIN=/usr/bin/google-chrome NODE_PATH="$RUNNER_TEMP/arena-browser/node_modules" node tests/browser_native.cjs
       - name: Retain monitor screenshots
         if: always()
         uses: actions/upload-artifact@v4

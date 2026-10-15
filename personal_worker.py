@@ -56,6 +56,8 @@ class WorkerClient:
 
 class PersonalLive:
     def __init__(self,client,ident):
+        from native_tunnel import NativeTunnel
+        self.native=NativeTunnel(lambda body:client.json('native/'+str(ident),body))
         self.client=client;self.ident=ident;self.queue=collections.deque(maxlen=12);self.lock=threading.Lock();self.stop=threading.Event()
         self.thread=threading.Thread(target=self.run,daemon=True);self.thread.start()
     def submit(self,r,g,frame):
@@ -68,7 +70,7 @@ class PersonalLive:
                     while len(json.dumps({'id':self.ident,'frames':batch}).encode())>65536 and len(batch)>1:batch.pop(0)
                     self.client.json('live',{'id':self.ident,'frames':batch})
                 except Exception:pass
-    def close(self):self.stop.set()
+    def close(self):self.stop.set();self.native.close()
 
 
 def local_handler(data_dir):
