@@ -4,7 +4,7 @@ FROM python:3.12-slim-bookworm AS native-build
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates cmake make g++ qtbase5-dev libboost-system-dev zlib1g-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /source
 RUN git init librcsc && cd librcsc && git remote add origin https://github.com/helios-base/librcsc.git && git fetch --depth 1 origin 65e139327751f2f45d9b5a03b1f59fb5ca700cd2 && git checkout --detach FETCH_HEAD
-RUN cmake -S librcsc -B librcsc-build -DCMAKE_INSTALL_PREFIX=/opt/rcss-native -DCMAKE_INSTALL_LIBDIR=lib -DHAVE_NETINET_IN_H=ON && cmake --build librcsc-build -j2 && cmake --install librcsc-build
+RUN cmake -S librcsc -B librcsc-build -DCMAKE_INSTALL_PREFIX=/opt/rcss-native -DCMAKE_INSTALL_LIBDIR=lib -DHAVE_NETINET_IN_H=ON && cmake --build librcsc-build -j2 && cmake --install librcsc-build && install -m 644 librcsc/rcsc/time/time_stamp.h /opt/rcss-native/include/rcsc/time/
 RUN git init soccerwindow2 && cd soccerwindow2 && git remote add origin https://github.com/helios-base/soccerwindow2.git && git fetch --depth 1 origin 1207fd2e7633b7de56f1618db23fca0338f27414 && git checkout --detach FETCH_HEAD
 RUN cmake -S soccerwindow2 -B sw-build -DCMAKE_INSTALL_PREFIX=/opt/rcss-native -DLIBRCSC_INSTALL_DIR=/opt/rcss-native && cmake --build sw-build -j2 && cmake --install sw-build
 RUN git init novnc && cd novnc && git remote add origin https://github.com/novnc/noVNC.git && git fetch --depth 1 origin a8dfd6a3ea3c74244f5ebdaa5a7f1023007a7820 && git checkout --detach FETCH_HEAD && rm -rf .git

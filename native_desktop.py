@@ -14,6 +14,11 @@ class Desktop:
         self.lock=threading.RLock();self.processes=[];self.broker=None;self.app=None;self.last_used=0
         self.root=Path(os.environ.get('ARENA_DESKTOP_DIR','/tmp/arena-desktop'));self.env=None
         atexit.register(self.close)
+        threading.Thread(target=self.reap,daemon=True).start()
+    def reap(self):
+        while True:
+            time.sleep(30)
+            if self.app and time.monotonic()-self.last_used>1200:self.close()
     def start(self):
         with self.lock:
             self.last_used=time.monotonic()
@@ -88,7 +93,9 @@ DESKTOP=Desktop()
 def json_body(h,limit=5*1024*1024):
     size=int(h.headers.get('Content-Length','0'))
     if not 0<size<=limit:raise ValueError('Invalid request size')
-    return json.loads(h.rfile.read(size))
+    body=json.loads(h.rfile.read(size))
+    if not isinstance(body,dict):raise ValueError('JSON object required')
+    return body
 
 def same_origin(h):
     origin=h.headers.get('Origin')
@@ -172,7 +179,7 @@ def handle(h):
             if path=='/native/upload':
                 DESKTOP.start();query=parse_qs(urlparse(h.path).query);name=query.get('name',[''])[0]
                 if not name or name!=Path(name).name or not re.fullmatch(r'[\w .,+()\-]+',name) or name.startswith('.'):raise ValueError('Invalid filename')
-                if Path(name).suffix.lower() not in ('.rcg','.gz','.log','.dcl','.conf','.json','.dat','.csv'):raise ValueError('Upload a replay, debug log, or formation file')
+                if Path(name).suffix.lower() not in ('.rcg','.gz','.log','.dcl','.ocl','.conf','.json','.dat','.csv','.xpm','.png','.svg','.txt','.xml'):raise ValueError('Upload a replay, debug log, or formation file')
                 size=int(h.headers.get('Content-Length','0'))
                 if size<=0 or size>shutil.disk_usage(DESKTOP.root).free-64*1024**2:raise ValueError('Not enough temporary disk space')
                 p=DESKTOP.root/'files'/name
