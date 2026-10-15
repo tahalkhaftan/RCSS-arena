@@ -16,7 +16,8 @@ function games(){
  }
  const signature=JSON.stringify([context.id,rows]);if(signature===lastGames)return;lastGames=signature;const previous=select.value;
  select.replaceChildren(...rows.map(row=>new Option(row.label,row.key)));
- select.value=rows.some(row=>row.key===previous)?previous:state.progress?state.progress.round+'/'+state.progress.game:rows[0]?.key||'';
+ const progressKey=state.progress?state.progress.round+'/'+state.progress.game:'';
+ select.value=rows.some(row=>row.key===previous)?previous:rows.some(row=>row.key===progressKey)?progressKey:rows[0]?.key||'';
 }
 $('nativeLoadTests').onclick=()=>task($('nativeLoadTests'),async()=>{
  const api=serviceURL()+($('mode').value==='personal'?'/personal':'');const rows=await read(api+'/api/tests');history.clear();const select=$('nativeTestChoice');select.replaceChildren(new Option(text('تست فعلی','Current test'),'current'));
