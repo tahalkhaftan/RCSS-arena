@@ -13,7 +13,7 @@ def moving_match():
   for ident in clients:
    if cycle%20==0:packets.append({'client':ident,'data':pack(b'(team 0 Blue Red 0 0)\0')})
    x=30*math.sin(cycle*.15);y=20*math.cos(cycle*.15)
-   players=' '.join(f'(({side} {i}) 0 1 {(-35 if side=="l" else 35)+i*2} {i*4-24+math.sin(cycle*.15)*3:.2f} 0 0 0 0)' for side in ('l','r') for i in range(1,12))
+   players=' '.join(f'(({side} {i}) 0 1 {(-40 if side=="l" else 15)+i*2} {i*4-24+math.sin(cycle*.15)*3:.2f} 0 0 0 0 (v h 90) (s 8000 1 1 130600) (c 0 0 0 0 0 0 0 0 0 0 0))' for side in ('l','r') for i in range(1,12))
    packets.append({'client':ident,'data':pack(f'(show {cycle} ((b) {x:.2f} {y:.2f} 0 0) {players})\0'.encode())})
   broker.exchange('latency-fixture',{'epoch':broker.epoch,'packets':packets})
   time.sleep(.1)
