@@ -59,15 +59,14 @@ class MonitorBroker:
             if body.get('epoch')==self.epoch:
                 for data in debug:
                     if len(data)<8192:self.debug_socket.sendto(data,('127.0.0.1',6032))
-                now=time.monotonic()
                 for ident,data in decoded:
                     c=self.clients.get(ident)
                     if c is None:continue
                     if data.startswith(b'(show '):c['show']=data
                     else:self.socket.sendto(data,c['address'])
                 for c in self.clients.values():
-                    if c.get('show') and now-c.get('last_show',0)>=.1:
-                        self.socket.sendto(c.pop('show'),c['address']);c['last_show']=now
+                    if c.get('show'):
+                        self.socket.sendto(c.pop('show'),c['address'])
             pending=list(self.queue);self.queue.clear()
             return {'active':True,'epoch':self.epoch,'packets':pending}
     def close(self):self.stopped.set();self.socket.close();self.debug_socket.close()
@@ -75,14 +74,43 @@ class MonitorBroker:
 class NativeTunnel:
     """Match-side tunnel. HTTP failure cannot block a match or its log writer."""
     def __init__(self,exchange,server_port=6000):
-        self.exchange=exchange;self.port=server_port;self.stop=threading.Event();self.lock=threading.Lock()
+        self.exchange=exchange;self.port=server_port;self.stop=threading.Event();self.lock=threading.RLock()
         self.clients={};self.epoch=None;self.generation=0;self.last_generation=-1;self.debug_enabled=False;self.debug_socket=None;self.active=False
+        self.receiver=threading.Thread(target=self.receive,daemon=True);self.receiver.start()
         self.thread=threading.Thread(target=self.run,daemon=True);self.thread.start()
     def reset(self,debug=False):
         with self.lock:self.generation+=1;self.debug_enabled=debug
     def clear(self):
-        for c in self.clients.values():c['socket'].close()
-        self.clients.clear()
+        with self.lock:
+            for c in self.clients.values():c['socket'].close()
+            self.clients.clear()
+    def receive(self):
+        # Always drain localhost UDP, including while an HTTP exchange is slow.
+        # Positions have one latest-value slot; parameter/control packets keep order.
+        while not self.stop.is_set():
+            with self.lock:sockets=[c['socket'] for c in self.clients.values()]
+            if not sockets:self.stop.wait(.01);continue
+            try:ready,_,_=select.select(sockets,[],[],.02)
+            except (OSError,ValueError):continue
+            with self.lock:
+                for c in self.clients.values():
+                    if c['socket'] not in ready:continue
+                    for _ in range(256):
+                        try:data,addr=c['socket'].recvfrom(65535)
+                        except (BlockingIOError,OSError):break
+                        if addr[0]!='127.0.0.1':continue
+                        c['address']=addr
+                        if data.startswith(b'(show '):c['show']=data
+                        elif len(c['pending'])<512:c['pending'].append(data)
+    def take_packets(self):
+        with self.lock:
+            outgoing=[]
+            for ident,c in self.clients.items():
+                while c['pending'] and len(outgoing)<MAX_PACKETS:
+                    outgoing.append({'client':ident,'data':pack(c['pending'].popleft())})
+                if c.get('show') and len(outgoing)<MAX_PACKETS:
+                    outgoing.append({'client':ident,'data':pack(c.pop('show'))})
+            return outgoing
     def run(self):
         outgoing=[];inits={}
         try:
@@ -103,22 +131,13 @@ class NativeTunnel:
                     for _ in range(MAX_PACKETS):
                         try:debug.append(pack(self.debug_socket.recvfrom(8191)[0]))
                         except (BlockingIOError,OSError):break
-                for ident,c in list(self.clients.items()):
-                    for _ in range(128):
-                        try:data,addr=c['socket'].recvfrom(65535)
-                        except BlockingIOError:break
-                        except OSError:break
-                        if addr[0]!='127.0.0.1':continue
-                        c['address']=addr
-                        if data.startswith(b'(show '):c['show']=data
-                        else:outgoing.append({'client':ident,'data':pack(data)})
-                        if len(outgoing)>=MAX_PACKETS:break
-                    if len(outgoing)>=MAX_PACKETS:break
-                    if c.get('show') and time.monotonic()-c.get('last_show',0)>=.1 and len(outgoing)<MAX_PACKETS:
-                        outgoing.append({'client':ident,'data':pack(c.pop('show'))});c['last_show']=time.monotonic()
-                    # Initial handshake may precede server startup; retry only before any response.
-                    if c['address'][1]==self.port and c.get('init') and time.monotonic()-c['sent']>1:
-                        c['socket'].sendto(c['init'],c['address']);c['sent']=time.monotonic()
+                outgoing=self.take_packets()
+                with self.lock:
+                    for c in self.clients.values():
+                        # Retry startup handshake only before the server responds.
+                        if c['address'][1]==self.port and c.get('init') and time.monotonic()-c['sent']>1:
+                            c['socket'].sendto(c['init'],c['address']);c['sent']=time.monotonic()
+                exchange_started=time.monotonic()
                 try:
                     answer=self.exchange({'epoch':self.epoch,'packets':outgoing,'debug':debug if self.active else []});outgoing=[]
                     self.active=bool(answer.get('active'))
@@ -135,20 +154,22 @@ class NativeTunnel:
                         self.command(ident,data)
                 except Exception:
                     outgoing=[];self.stop.wait(.5)
-                self.stop.wait(.08)
+                self.stop.wait(max(0,.05-(time.monotonic()-exchange_started)))
         finally:
             self.clear()
             if self.debug_socket:self.debug_socket.close()
     def command(self,ident,data):
-        c=self.clients.get(ident)
-        if c is None:
-            if len(self.clients)>=8:return
-            sock=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);sock.bind(('127.0.0.1',0));sock.setblocking(False)
-            c=self.clients[ident]={'socket':sock,'address':('127.0.0.1',self.port),'sent':0}
-        c['socket'].sendto(data,c['address']);c['sent']=time.monotonic()
-        if data.startswith(b'(dispinit'):c['init']=data
-        if data.startswith(b'(dispbye'):c['socket'].close();self.clients.pop(ident,None)
-    def close(self):self.stop.set();self.thread.join(timeout=.2)
+        with self.lock:
+            c=self.clients.get(ident)
+            if c is None:
+                if len(self.clients)>=8:return
+                sock=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);sock.bind(('127.0.0.1',0));sock.setblocking(False)
+                c=self.clients[ident]={'socket':sock,'address':('127.0.0.1',self.port),'sent':0,'pending':collections.deque()}
+            c['socket'].sendto(data,c['address']);c['sent']=time.monotonic()
+            if data.startswith(b'(dispinit'):c['init']=data
+            if data.startswith(b'(dispbye'):c['socket'].close();self.clients.pop(ident,None)
+    def close(self):
+        self.stop.set();self.thread.join(timeout=.2);self.receiver.join(timeout=.2)
 
 def http_exchange(connection):
     from live import NoRedirect

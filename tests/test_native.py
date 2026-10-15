@@ -88,3 +88,39 @@ class ResponsiveTransport(unittest.TestCase):
    client.settimeout(.05)
    with self.assertRaises(socket.timeout):client.recv(65535)
   finally:broker.close();client.close()
+
+class ContinuousNativeReceive(unittest.TestCase):
+ def test_slow_http_does_not_leave_udp_frames_waiting_in_kernel(self):
+  entered=threading.Event();release=threading.Event()
+  def slow(body):
+   entered.set();release.wait(3)
+   return {'active':False,'epoch':0,'packets':[]}
+  tunnel=NativeTunnel(slow);server=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+  server.bind(('127.0.0.1',0));server.settimeout(2)
+  try:
+   self.assertTrue(entered.wait(1));tunnel.port=server.getsockname()[1]
+   tunnel.command('1',b'(dispinit version 5)\0');_,addr=server.recvfrom(65535)
+   server.sendto(b'(server_param fixture)\0',addr)
+   for cycle in range(200):
+    server.sendto(f'(show {cycle})\0'.encode(),addr);time.sleep(.001)
+   deadline=time.monotonic()+1
+   while time.monotonic()<deadline:
+    with tunnel.lock:latest=tunnel.clients['1'].get('show')
+    if latest==b'(show 199)\0':break
+    time.sleep(.005)
+   self.assertEqual(latest,b'(show 199)\0','Receive must continue while HTTP is blocked')
+   packets=[unpack(p['data']) for p in tunnel.take_packets()]
+   self.assertEqual(packets,[b'(server_param fixture)\0',b'(show 199)\0'])
+   self.assertEqual(tunnel.take_packets(),[])
+  finally:release.set();tunnel.close();server.close()
+ def test_broker_does_not_hold_a_fresh_frame_until_the_next_http_request(self):
+  broker=MonitorBroker(0);client=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);client.settimeout(1)
+  try:
+   broker.bind('17');client.sendto(b'(dispinit version 5)\0',broker.socket.getsockname())
+   deadline=time.monotonic()+1
+   while not broker.clients and time.monotonic()<deadline:time.sleep(.005)
+   ident=next(iter(broker.clients))
+   for cycle in (1,2):
+    broker.exchange('17',{'epoch':broker.epoch,'packets':[{'client':ident,'data':pack(f'(show {cycle})\0'.encode())}]})
+    self.assertEqual(client.recv(65535),f'(show {cycle})\0'.encode())
+  finally:broker.close();client.close()

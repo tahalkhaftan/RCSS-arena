@@ -15,6 +15,25 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');let 
  const initial=(await(await context.request.get(base+'/native-test/windows')).json()).windows.length;now=Date.now();await page.keyboard.press('Control+Alt+f');
  let opened=false;for(let i=0;i<35;i++){const state=await(await context.request.get(base+'/native-test/windows')).json();if(state.windows.length>initial){opened=true;break;}await new Promise(r=>setTimeout(r,50));}
  const keyboardMs=Date.now()-now;assert.ok(opened,'Original formation editor never opened over RFB');assert.ok(keyboardMs<3000,`Native keyboard response took ${keyboardMs}ms`);
+ await context.request.post(base+'/native/close-tool',{data:{}});
+ await context.request.post(base+'/native-test/motion',{data:{}});
+ // Observe actual native match movement, not just idle menu responsiveness.
+ const movement=await page.evaluate(async()=>{
+  const c=document.querySelector('#desktop canvas'),ctx=c.getContext('2d');let last=null,changes=0,lastChange=performance.now(),maxGap=0;
+  const started=performance.now();while(performance.now()-started<6500){
+   const p=ctx.getImageData(0,100,c.width,c.height-130).data;let sum=0;
+   for(let i=0;i<p.length;i+=16)sum=(sum+p[i]*3+p[i+1]*5+p[i+2]*7)>>>0;
+   const now=performance.now();if(last!==null&&sum!==last){changes++;maxGap=Math.max(maxGap,now-lastChange);lastChange=now;}last=sum;
+   await new Promise(r=>setTimeout(r,100));
+  }return {changes,maxGap:Math.round(Math.max(maxGap,performance.now()-lastChange))};
+ });
+ assert.ok(movement.changes>=10,`Native match rendering stalled: ${JSON.stringify(movement)}`);
+ assert.ok(movement.maxGap<2500,`Native image froze: ${JSON.stringify(movement)}`);
+ const movingWindows=(await(await context.request.get(base+'/native-test/windows')).json()).windows.length;
+ now=Date.now();await page.keyboard.press('Control+Alt+f');let movingOpened=false;
+ for(let i=0;i<35;i++){const state=await(await context.request.get(base+'/native-test/windows')).json();if(state.windows.length>movingWindows){movingOpened=true;break;}await new Promise(r=>setTimeout(r,50));}
+ const movingKeyboardMs=Date.now()-now;assert.ok(movingOpened&&movingKeyboardMs<3000,`Input stalled during match: ${movingKeyboardMs}ms`);
+ console.log(JSON.stringify({movingMatch:movement,movingKeyboardMs}));
  await page.screenshot({path:'/tmp/native-latency.png'});console.log(JSON.stringify({cpu:0.1,memoryMiB:512,pointerMs,keyboardMs}));
  await context.request.post(base+'/native/close-tool',{data:{}});await browser.close();
 })().catch(async e=>{console.error(e);await browser?.close();process.exitCode=1});
