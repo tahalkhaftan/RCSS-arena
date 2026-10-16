@@ -124,3 +124,15 @@ class ContinuousNativeReceive(unittest.TestCase):
     broker.exchange('17',{'epoch':broker.epoch,'packets':[{'client':ident,'data':pack(f'(show {cycle})\0'.encode())}]})
     self.assertEqual(client.recv(65535),f'(show {cycle})\0'.encode())
   finally:broker.close();client.close()
+
+
+class WindowExportIsolation(unittest.TestCase):
+ def test_only_owned_visible_window_ids_may_create_streams(self):
+  from native_desktop import DESKTOP
+  with patch.object(DESKTOP,'window_state',return_value={'detached':True,'windows':[{'id':'123'}]}),patch('native_desktop.subprocess.Popen') as launch:
+   for ident in ('1','456','../123','123;id'):
+    with self.assertRaises(ValueError):DESKTOP.window_stream(ident)
+   launch.assert_not_called()
+  with patch.object(DESKTOP,'window_state',return_value={'detached':False,'windows':[{'id':'123'}]}),patch('native_desktop.subprocess.Popen') as launch:
+   with self.assertRaises(ValueError):DESKTOP.window_stream('123')
+   launch.assert_not_called()
