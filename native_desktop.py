@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parent
 class Desktop:
     def __init__(self):
         self.lock=threading.RLock();self.control_lock=threading.Lock();self.processes=[];self.broker=None;self.app=None;self.last_used=0
+        self.window_streams={}
         self.root=Path(os.environ.get('ARENA_DESKTOP_DIR','/tmp/arena-desktop'));self.env=None
         atexit.register(self.close)
         threading.Thread(target=self.reap,daemon=True).start()
@@ -34,6 +35,8 @@ class Desktop:
                 if any(w in k for w in ('TOKEN','PASSWORD','SECRET')):env.pop(k,None)
             env.update(DISPLAY=':91',HOME=str(self.root),QT_X11_NO_MITSHM='1',QT_STYLE_OVERRIDE='Fusion')
             env.update(ARENA_FORMATION_PREVIEW=str(self.root/'formation-preview.json'),ARENA_FORMATION_COMMAND=str(self.root/'formation-command.json'))
+            env.update(ARENA_WINDOWS_PREVIEW=str(self.root/'windows.json'),ARENA_WINDOWS_DETACHED=str(self.root/'detached'))
+            (self.root/'detached').write_text('0');(self.root/'windows.json').unlink(missing_ok=True)
             self.env=env
             self.broker=MonitorBroker()
             def launch(argv):
@@ -41,10 +44,10 @@ class Desktop:
                     p=subprocess.Popen(argv,cwd=self.root/'files',env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
                 self.processes.append(p);return p
             try:
-                launch(['Xvfb',':91','-screen','0','1024x720x16','-nolisten','tcp','-ac'])
+                launch(['Xvfb',':91','-screen','0','4200x3000x16','-nolisten','tcp','-ac'])
                 self.wait(lambda:Path('/tmp/.X11-unix/X91').exists())
                 launch(['openbox','--sm-disable'])
-                launch(['x11vnc','-display',':91','-localhost','-rfbport','5901','-forever','-shared','-nopw','-threads','-wait','80','-defer','15','-quiet'])
+                launch(['x11vnc','-display',':91','-localhost','-rfbport','5901','-clip','1024x720+0+0','-forever','-shared','-nopw','-threads','-wait','80','-defer','15','-quiet'])
                 self.wait(lambda:self.port_open(5901))
                 launch(['websockify','127.0.0.1:6081','127.0.0.1:5901'])
                 self.wait(lambda:self.port_open(6081))
@@ -69,6 +72,63 @@ class Desktop:
     def windows(self):
         if not self.app:return []
         return self.xdo('search','--onlyvisible','--pid',self.app.pid).stdout.split()
+    def window_state(self):
+        if not self.app or self.app.poll() is not None:return {'detached':False,'windows':[]}
+        try:state=json.loads((self.root/'windows.json').read_text())
+        except (OSError,ValueError):state={'windows':[]}
+        state['layout_detached']=state.get('detached',False)
+        state['detached']=(self.root/'detached').read_text().strip()=='1'
+        return state
+    @staticmethod
+    def stop_window_process(process):
+        if process.poll() is None:process.terminate()
+        try:process.wait(timeout=1)
+        except subprocess.TimeoutExpired:process.kill();process.wait(timeout=1)
+    def set_detached(self,enabled):
+        self.start();flag=self.root/'detached';temp=flag.with_suffix('.tmp');temp.write_text('1' if enabled else '0');temp.replace(flag)
+        if not enabled:
+            with self.lock:
+                for stream in self.window_streams.values():
+                    for p in stream['processes']:
+                        self.stop_window_process(p)
+                self.window_streams.clear()
+        self.wait(lambda:bool(self.window_state()['windows']) and self.window_state().get('layout_detached')==enabled)
+        return self.window_state()
+    def open_tool(self,tool):
+        with self.control_lock:
+            shortcuts={'formation':'ctrl+alt+f','debug':'ctrl+d'}
+            if tool not in ('main',*shortcuts):raise ValueError('Unknown native tool')
+            self.set_detached(True)
+            def selected():
+                record=next((w for w in self.window_state()['windows'] if w['key']==tool),None)
+                return record if record and record['id'] in self.windows() else None
+            if not selected() and tool!='main':
+                self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers',shortcuts[tool])
+            self.wait(selected);return selected()
+    def window_stream(self,ident):
+        # Only IDs supplied by this SoccerWindow2 process may be exported.
+        with self.lock:
+            state=self.window_state()
+            if not state['detached'] or not any(w['id']==ident for w in state['windows']):raise ValueError('Native window is closed or attached to the site')
+            cached=self.window_streams.get(ident)
+            if cached and all(p.poll() is None for p in cached['processes']):return cached['port']
+            for stale in list(self.window_streams):
+                if stale not in {w['id'] for w in state['windows']} or stale==ident:
+                    for p in self.window_streams.pop(stale)['processes']:
+                        self.stop_window_process(p)
+            used={item['slot'] for item in self.window_streams.values()};slot=next((i for i in range(9) if i not in used),None)
+            if slot is None:raise ValueError('Close an unused detached window first')
+            vnc=5910+slot;port=6090+slot;processes=[]
+            try:
+                commands=[['x11vnc','-display',':91','-sid',ident,'-localhost','-rfbport',str(vnc),'-forever','-shared','-nopw','-threads','-wait','80','-defer','15','-quiet'],['websockify','127.0.0.1:'+str(port),'127.0.0.1:'+str(vnc)]]
+                for command,ready in zip(commands,(vnc,port)):
+                    with (self.root/'desktop.log').open('ab') as log:p=subprocess.Popen(command,env=self.env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+                    processes.append(p);self.processes.append(p);self.wait(lambda:self.port_open(ready))
+                self.window_streams[ident]={'slot':slot,'port':port,'processes':processes};return port
+            except Exception:
+                for p in processes:
+                    self.stop_window_process(p)
+                raise
     def exchange(self,target,body):
         with self.lock:
             return self.broker.exchange(target,body) if self.broker else {'active':False,'epoch':0,'packets':[]}
@@ -122,7 +182,7 @@ class Desktop:
                 if p.poll() is None:
                     try:p.terminate();p.wait(timeout=2)
                     except (OSError,subprocess.TimeoutExpired):p.kill()
-            self.processes=[];self.app=None
+            self.processes=[];self.app=None;self.window_streams={}
 
 DESKTOP=Desktop()
 
@@ -137,12 +197,13 @@ def same_origin(h):
     origin=h.headers.get('Origin')
     return not origin or urlparse(origin).netloc==h.headers.get('Host')
 
-def websocket(h):
+def websocket(h,window=None):
     if not same_origin(h):return h.send(403,{'error':'Origin rejected'})
     if h.headers.get('Upgrade','').lower()!='websocket':return h.send(400,{'error':'WebSocket required'})
-    DESKTOP.start()
+    if window is None:DESKTOP.start();port=6081
+    else:port=DESKTOP.window_stream(window)
     # Proxy the original upgraded stream; websockify owns RFC6455/RFB parsing.
-    with socket.create_connection(('127.0.0.1',6081),timeout=10) as peer:
+    with socket.create_connection(('127.0.0.1',port),timeout=10) as peer:
         headers=['GET / HTTP/1.1','Host: 127.0.0.1:6081','Upgrade: websocket','Connection: Upgrade']
         for key in ('Sec-WebSocket-Key','Sec-WebSocket-Version','Sec-WebSocket-Protocol'):
             value=h.headers.get(key)
@@ -219,6 +280,11 @@ def handle(h):
     try:
         if h.command=='GET':
             if path=='/native/socket':websocket(h);return True
+            if path=='/native/window-socket':
+                ident=parse_qs(urlparse(h.path).query).get('id',[''])[0]
+                if not re.fullmatch(r'[0-9]{1,12}',ident):raise ValueError('Invalid native window')
+                websocket(h,ident);return True
+            if path=='/native/windows':h.send(200,DESKTOP.window_state());return True
             if path=='/native/status':
                 running=bool(DESKTOP.app and DESKTOP.app.poll() is None)
                 h.send(200,{'running':running,'target':DESKTOP.broker.target if DESKTOP.broker else None});return True
@@ -237,6 +303,12 @@ def handle(h):
             if not p.is_relative_to(base.resolve()) or not p.is_file():h.send(404,{'error':'Not found'});return True
             h.send(200,p.read_bytes(),mimetypes.guess_type(p.name)[0] or 'application/octet-stream');return True
         if h.command=='POST':
+            if path=='/native/windows-mode':
+                body=json_body(h)
+                if type(body.get('enabled')) is not bool:raise ValueError('Choose a window mode')
+                h.send(200,DESKTOP.set_detached(body['enabled']));return True
+            if path=='/native/window-tool':
+                body=json_body(h);h.send(200,DESKTOP.open_tool(body.get('tool')));return True
             if path=='/native/start':DESKTOP.start();h.send(200,{'ok':True});return True
             if path=='/native/stop':DESKTOP.close();h.send(200,{'ok':True});return True
             if path=='/native/connect':

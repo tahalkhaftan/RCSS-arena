@@ -29,7 +29,7 @@ class CheckHandler(Handler):
  def do_GET(self):
   if self.path=='/native-test/windows':
    if not self.auth():return
-   return self.send(200,{'windows':DESKTOP.windows() if DESKTOP.app else []})
+   return self.send(200,{'windows':DESKTOP.windows() if DESKTOP.app else [],'pid':DESKTOP.app.pid if DESKTOP.app else None})
   return super().do_GET()
 try:
  ThreadingHTTPServer(('0.0.0.0',8000),CheckHandler).serve_forever()

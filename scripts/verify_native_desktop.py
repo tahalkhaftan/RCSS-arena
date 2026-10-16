@@ -22,6 +22,28 @@ try:
  DESKTOP.formation_command('open',export)
  assert DESKTOP.formation_preview()['available']
  DESKTOP.close_tool()
+ # Independent real top-level windows must not overlap on the virtual display.
+ main=DESKTOP.open_tool('main');formation=DESKTOP.open_tool('formation');debug=DESKTOP.open_tool('debug')
+ DESKTOP.wait(lambda:any(w['key']=='debug' and w['x']>1400 for w in DESKTOP.window_state()['windows']))
+ records=DESKTOP.window_state()['windows'];assert {w['key'] for w in records}>={'main','formation','debug'},records
+ for a in records:
+  for b in records:
+   if a['id']!=b['id']:assert a['x']+a['width']<=b['x'] or b['x']+b['width']<=a['x'] or a['y']+a['height']<=b['y'] or b['y']+b['height']<=a['y'],(a,b)
+ # A per-window VNC greeting has exactly the widget dimensions, no virtual desktop border.
+ import struct
+ for record in records:
+  DESKTOP.window_stream(record['id']);slot=DESKTOP.window_streams[record['id']]['slot']
+  with socket.create_connection(('127.0.0.1',5910+slot),timeout=8) as vnc:
+   stream=vnc.makefile('rb');assert stream.read(12).startswith(b'RFB 003.');vnc.sendall(b'RFB 003.008\n')
+   count=stream.read(1)[0];security=stream.read(count);assert 1 in security;vnc.sendall(b'\x01');assert stream.read(4)==b'\0'*4
+   vnc.sendall(b'\x01');header=stream.read(24);width,height=struct.unpack('!HH',header[:4]);assert (width,height)==(record['width'],record['height']),(width,height,record)
+   stream.close()
+ DESKTOP.set_detached(False)
+ # Close tools without exiting the same main process.
+ for record in records:
+  if record['key']!='main':DESKTOP.xdo('windowactivate',record['id']);DESKTOP.xdo('key','--clearmodifiers','alt+F4')
+ DESKTOP.wait(lambda:len(DESKTOP.windows())==1)
+ print('PASS independent main/formation/debug windows, non-overlapping pixels and exact per-window framebuffer sizes',flush=True)
  # A real native file-open action. Small valid rcg fixture, no browser parser.
  rcg=DESKTOP.root/'files'/'native-fixture.rcg'
  rcg.write_text('ULG5\n(team 0 Blue Red 0 0)\n(playmode 0 before_kick_off)\n(show 1 ((b) 0 0 0 0))\n')
@@ -60,4 +82,8 @@ try:
  # Screenshot proves native Qt/editor rendering survives the complete path.
  subprocess.run(['xwd','-root','-silent','-display',':91','-out',str(DESKTOP.root/'native.xwd')],check=True)
  print('PASS original Qt startup, native formation editor/close, RCG file open and outbound monitor tunnel',flush=True)
+except Exception:
+ print('Native window state:',DESKTOP.window_state(),flush=True)
+ if (DESKTOP.root/'desktop.log').is_file():print((DESKTOP.root/'desktop.log').read_text(errors='replace')[-6000:],flush=True)
+ raise
 finally:DESKTOP.close()

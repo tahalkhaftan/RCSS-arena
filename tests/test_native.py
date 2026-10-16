@@ -124,3 +124,23 @@ class ContinuousNativeReceive(unittest.TestCase):
     broker.exchange('17',{'epoch':broker.epoch,'packets':[{'client':ident,'data':pack(f'(show {cycle})\0'.encode())}]})
     self.assertEqual(client.recv(65535),f'(show {cycle})\0'.encode())
   finally:broker.close();client.close()
+
+
+class WindowExportIsolation(unittest.TestCase):
+ def test_only_owned_visible_window_ids_may_create_streams(self):
+  from native_desktop import DESKTOP
+  with patch.object(DESKTOP,'window_state',return_value={'detached':True,'windows':[{'id':'123'}]}),patch('native_desktop.subprocess.Popen') as launch:
+   for ident in ('1','456','../123','123;id'):
+    with self.assertRaises(ValueError):DESKTOP.window_stream(ident)
+   launch.assert_not_called()
+  with patch.object(DESKTOP,'window_state',return_value={'detached':False,'windows':[{'id':'123'}]}),patch('native_desktop.subprocess.Popen') as launch:
+   with self.assertRaises(ValueError):DESKTOP.window_stream('123')
+   launch.assert_not_called()
+ def test_hidden_tool_is_reopened_even_when_the_qt_snapshot_is_stale(self):
+  from native_desktop import DESKTOP
+  visible=['1'];record={'id':'2','key':'formation'}
+  def command(*args):
+   if args==('key','--clearmodifiers','ctrl+alt+f'):visible.append('2')
+  with patch.object(DESKTOP,'set_detached'),patch.object(DESKTOP,'main_window','1',create=True),patch.object(DESKTOP,'window_state',return_value={'detached':True,'windows':[record]}),patch.object(DESKTOP,'windows',side_effect=lambda:visible.copy()),patch.object(DESKTOP,'xdo',side_effect=command) as xdo:
+   self.assertEqual(DESKTOP.open_tool('formation'),record)
+   xdo.assert_any_call('key','--clearmodifiers','ctrl+alt+f')
