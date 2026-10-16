@@ -18,7 +18,7 @@ function render(state){
  }
  $('windows').replaceChildren(...links);
 }
-async function poll(){if(busy||closed||document.hidden)return;busy=true;try{render(await json('windows'));}catch(e){$('status').textContent=e.message;}finally{busy=false;}}
+async function poll(){if(busy||closed||!ident||document.hidden)return;busy=true;try{render(await json('windows'));}catch(e){$('status').textContent=e.message;}finally{busy=false;}}
 (async()=>{try{
  if(query.has('id')){const state=await json('windows');const record=state.windows.find(w=>w.id===query.get('id'));if(!record||!state.detached)throw Error('پنجرهٔ انتخاب‌شده بسته است؛ از دکمهٔ ابزار استفاده کن.');connect(record);}
  else connect(await json('window-tool',{tool:query.get('tool')||'main'}));
