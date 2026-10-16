@@ -136,3 +136,11 @@ class WindowExportIsolation(unittest.TestCase):
   with patch.object(DESKTOP,'window_state',return_value={'detached':False,'windows':[{'id':'123'}]}),patch('native_desktop.subprocess.Popen') as launch:
    with self.assertRaises(ValueError):DESKTOP.window_stream('123')
    launch.assert_not_called()
+ def test_hidden_tool_is_reopened_even_when_the_qt_snapshot_is_stale(self):
+  from native_desktop import DESKTOP
+  visible=['1'];record={'id':'2','key':'formation'}
+  def command(*args):
+   if args==('key','--clearmodifiers','ctrl+alt+f'):visible.append('2')
+  with patch.object(DESKTOP,'set_detached'),patch.object(DESKTOP,'main_window','1',create=True),patch.object(DESKTOP,'window_state',return_value={'detached':True,'windows':[record]}),patch.object(DESKTOP,'windows',side_effect=lambda:visible.copy()),patch.object(DESKTOP,'xdo',side_effect=command) as xdo:
+   self.assertEqual(DESKTOP.open_tool('formation'),record)
+   xdo.assert_any_call('key','--clearmodifiers','ctrl+alt+f')
