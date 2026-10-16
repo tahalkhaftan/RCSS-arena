@@ -38,6 +38,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');let 
  // Three browser windows, one native process, each with its own cropped RFB stream.
  await context.request.post(base+'/native/close-tool',{data:{}});
  const pid=(await(await context.request.get(base+'/native-test/windows')).json()).pid;
+ await page.close();
  const mainPage=await context.newPage();await mainPage.goto(base+'/native/window.html?tool=main');
  const visibleCanvas=async p=>{await p.locator('#frame').waitFor({state:'visible',timeout:30000});const frame=()=>p.frames().find(f=>f.url().includes('viewer.html?window='));for(let i=0;i<80;i++){const f=frame();if(f&&await f.locator('#desktop canvas').count()&&await f.locator('#desktop canvas').evaluate(c=>c.width>0&&c.height>0))return f;await new Promise(r=>setTimeout(r,200));}throw Error('Per-window VNC did not become visible');};
  await visibleCanvas(mainPage);

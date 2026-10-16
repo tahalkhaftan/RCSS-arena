@@ -76,6 +76,7 @@ class Desktop:
         if not self.app or self.app.poll() is not None:return {'detached':False,'windows':[]}
         try:state=json.loads((self.root/'windows.json').read_text())
         except (OSError,ValueError):state={'windows':[]}
+        state['layout_detached']=state.get('detached',False)
         state['detached']=(self.root/'detached').read_text().strip()=='1'
         return state
     def set_detached(self,enabled):
@@ -86,14 +87,16 @@ class Desktop:
                     for p in stream['processes']:
                         if p.poll() is None:p.terminate()
                 self.window_streams.clear()
-        self.wait(lambda:bool(self.window_state()['windows']))
+        self.wait(lambda:bool(self.window_state()['windows']) and self.window_state().get('layout_detached')==enabled)
         return self.window_state()
     def open_tool(self,tool):
         with self.control_lock:
             shortcuts={'formation':'ctrl+alt+f','debug':'ctrl+d'}
             if tool not in ('main',*shortcuts):raise ValueError('Unknown native tool')
             self.set_detached(True)
-            def selected():return next((w for w in self.window_state()['windows'] if w['key']==tool),None)
+            def selected():
+                record=next((w for w in self.window_state()['windows'] if w['key']==tool),None)
+                return record if record and record['id'] in self.windows() else None
             if not selected() and tool!='main':
                 self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers',shortcuts[tool])
             self.wait(selected);return selected()

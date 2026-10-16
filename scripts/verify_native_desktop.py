@@ -25,7 +25,7 @@ try:
  # Independent real top-level windows must not overlap on the virtual display.
  main=DESKTOP.open_tool('main');formation=DESKTOP.open_tool('formation');debug=DESKTOP.open_tool('debug')
  DESKTOP.wait(lambda:any(w['key']=='debug' and w['x']>1400 for w in DESKTOP.window_state()['windows']))
- records=DESKTOP.window_state()['windows'];assert {w['key'] for w in records}>={'main','formation','debug'}
+ records=DESKTOP.window_state()['windows'];assert {w['key'] for w in records}>={'main','formation','debug'},records
  for a in records:
   for b in records:
    if a['id']!=b['id']:assert a['x']+a['width']<=b['x'] or b['x']+b['width']<=a['x'] or a['y']+a['height']<=b['y'] or b['y']+b['height']<=a['y'],(a,b)
@@ -82,4 +82,8 @@ try:
  # Screenshot proves native Qt/editor rendering survives the complete path.
  subprocess.run(['xwd','-root','-silent','-display',':91','-out',str(DESKTOP.root/'native.xwd')],check=True)
  print('PASS original Qt startup, native formation editor/close, RCG file open and outbound monitor tunnel',flush=True)
+except Exception:
+ print('Native window state:',DESKTOP.window_state(),flush=True)
+ if (DESKTOP.root/'desktop.log').is_file():print((DESKTOP.root/'desktop.log').read_text(errors='replace')[-6000:],flush=True)
+ raise
 finally:DESKTOP.close()
