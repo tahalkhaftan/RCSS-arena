@@ -39,7 +39,6 @@ $('nativePlayGame').onclick=()=>task($('nativePlayGame'),async()=>{
  status.textContent=text('بازی انتخاب‌شده: ','Selected game: ')+key+(live?' · LIVE':' · RCG');await window.arenaNative.refreshFiles();
 });
 async function upload(input,kind){const file=input.files?.[0];if(!file)return;await ready();status.textContent=text('در حال ارسال: ','Uploading: ')+file.name;const r=await fetch('/native/upload?name='+encodeURIComponent(file.name),{method:'POST',credentials:'same-origin',body:file});const data=await r.json();if(!r.ok)throw Error(data.error);await post('open-file',{name:data.name,kind});status.textContent=file.name;input.value='';await window.arenaNative.refreshFiles();await preview();}
-$('nativeReplayUpload').onchange=()=>task($('nativePlayGame'),()=>upload($('nativeReplayUpload'),'replay'));
 $('nativeFormationUpload').onchange=()=>task($('nativeFormationNew'),()=>upload($('nativeFormationUpload'),'formation'));
 $('nativeFormationNew').onclick=()=>task($('nativeFormationNew'),async()=>{await ready();await post('formation/new');await preview();});
 $('nativeFormationExport').onclick=()=>task($('nativeFormationExport'),async()=>{

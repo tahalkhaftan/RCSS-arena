@@ -1,4 +1,4 @@
-/* The visible monitor is an original Qt desktop, not a canvas reimplementation. */
+/* Optional original Qt desktop alongside the default browser monitor. */
 (()=>{
 const byId=id=>document.getElementById(id),status=byId('nativeStatus');
 let opened=false;
@@ -22,7 +22,7 @@ window.arenaNative={start,refreshFiles:listFiles,isOpen:()=>opened};
 window.addEventListener('message',e=>{if(e.origin===location.origin&&e.source===byId('nativeFrame').contentWindow&&e.data?.type==='native-connected')message('SoccerWindow2 — نسخهٔ اصلی');});
 // User-entered team names, results JSON, file names and native Qt text are never translated.
 const words={
-'شخصی‌سازی ▾':'Customize ▾','رنگ':'Color','زبان':'Language','تم روشن':'Light','تم مشکی':'Dark',
+'نوع مانیتور':'Monitor type','مانیتور سایت':'Website monitor','شخصی‌سازی ▾':'Customize ▾','رنگ':'Color','زبان':'Language','تم روشن':'Light','تم مشکی':'Dark',
 'تست مسابقه دو تیم':'Two-team match tests','تیم سمت چپ':'Left team','تیم سمت راست':'Right team','نام تیم':'Team name',
 'آپلود باینری':'Upload binary','آپلود سورس و بیلد':'Upload source & build','پوشهٔ اجرا بعد از استخراج':'Working folder after extraction','دستور شروع':'Start command',
 'آپلود فایل تیم چپ':'Upload left team ZIP','آپلود فایل تیم راست':'Upload right team ZIP','انتخاب تیم آماده':'Choose preset team',
