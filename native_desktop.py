@@ -79,13 +79,18 @@ class Desktop:
         state['layout_detached']=state.get('detached',False)
         state['detached']=(self.root/'detached').read_text().strip()=='1'
         return state
+    @staticmethod
+    def stop_window_process(process):
+        if process.poll() is None:process.terminate()
+        try:process.wait(timeout=1)
+        except subprocess.TimeoutExpired:process.kill();process.wait(timeout=1)
     def set_detached(self,enabled):
         self.start();flag=self.root/'detached';temp=flag.with_suffix('.tmp');temp.write_text('1' if enabled else '0');temp.replace(flag)
         if not enabled:
             with self.lock:
                 for stream in self.window_streams.values():
                     for p in stream['processes']:
-                        if p.poll() is None:p.terminate()
+                        self.stop_window_process(p)
                 self.window_streams.clear()
         self.wait(lambda:bool(self.window_state()['windows']) and self.window_state().get('layout_detached')==enabled)
         return self.window_state()
@@ -110,7 +115,7 @@ class Desktop:
             for stale in list(self.window_streams):
                 if stale not in {w['id'] for w in state['windows']} or stale==ident:
                     for p in self.window_streams.pop(stale)['processes']:
-                        if p.poll() is None:p.terminate()
+                        self.stop_window_process(p)
             used={item['slot'] for item in self.window_streams.values()};slot=next((i for i in range(9) if i not in used),None)
             if slot is None:raise ValueError('Close an unused detached window first')
             vnc=5910+slot;port=6090+slot;processes=[]
@@ -122,7 +127,7 @@ class Desktop:
                 self.window_streams[ident]={'slot':slot,'port':port,'processes':processes};return port
             except Exception:
                 for p in processes:
-                    if p.poll() is None:p.terminate()
+                    self.stop_window_process(p)
                 raise
     def exchange(self,target,body):
         with self.lock:
