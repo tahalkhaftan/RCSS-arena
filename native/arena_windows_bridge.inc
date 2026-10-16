@@ -7,6 +7,14 @@ if (!arenaWindows.isEmpty() && !arenaDetached.isEmpty()) {
             [this, arenaWindows, arenaDetached, layoutSlots = QHash<qulonglong,int>(), previous = QByteArray(), oldMode = false]() mutable {
         QFile flag(arenaDetached);bool detached=false;
         if(flag.open(QIODevice::ReadOnly)) detached=flag.readAll().trimmed()=="1";
+        // Root-based single-window capture includes native menus. Keep them inside
+        // their owning window so a menu at its right/bottom edge is not clipped.
+        if(detached)for(auto *popup:QApplication::topLevelWidgets()){
+            if(!popup->isVisible()||popup->windowType()!=Qt::Popup||!popup->parentWidget())continue;
+            auto *owner=popup->parentWidget()->window();if(owner==popup)continue;
+            const QRect rect(owner->mapToGlobal(QPoint(0,0)),owner->size());
+            popup->move(qBound(rect.left(),popup->x(),rect.left()+std::max(0,rect.width()-popup->width())),qBound(rect.top(),popup->y(),rect.top()+std::max(0,rect.height()-popup->height())));
+        }
         QList<QWidget*> visible;
         for(auto *w:QApplication::topLevelWidgets())
             if(w->isVisible() && w->isWindow() && w->windowType()!=Qt::Popup && w->windowType()!=Qt::ToolTip && !w->windowTitle().isEmpty()) visible.append(w);

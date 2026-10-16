@@ -10,6 +10,7 @@ function render(state){
  const current=state.windows.find(w=>w.id===ident);
  if(!current){$('frame').src='about:blank';$('frame').hidden=true;$('status').textContent='این پنجره در برنامه بسته شده است؛ ابزار را دوباره از دکمهٔ بالا باز کن.';return;}
  if($('frame').hidden)connect(current);
+ for(const id of seen)if(!state.windows.some(w=>w.id===id))seen.delete(id);
  const links=[];
  for(const w of state.windows){const a=document.createElement('a');a.href='/native/window.html?id='+w.id;const name=['main','formation','debug'].includes(w.key)?w.key:w.id;a.target='arena-native-'+name;a.textContent=w.title;a.onclick=e=>{e.preventDefault();open(a.href,name);};links.push(a);
   if(w.id!==ident&&!seen.has(w.id)&&(w.owner===ident||(own.key==='main'&&!w.modal&&['formation','debug'].includes(w.key))))open(a.href,name);

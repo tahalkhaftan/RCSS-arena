@@ -89,13 +89,14 @@ class Desktop:
         self.wait(lambda:bool(self.window_state()['windows']))
         return self.window_state()
     def open_tool(self,tool):
-        shortcuts={'formation':'ctrl+alt+f','debug':'ctrl+d'}
-        if tool not in ('main',*shortcuts):raise ValueError('Unknown native tool')
-        self.set_detached(True)
-        def selected():return next((w for w in self.window_state()['windows'] if w['key']==tool),None)
-        if not selected() and tool!='main':
-            self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers',shortcuts[tool])
-        self.wait(selected);return selected()
+        with self.control_lock:
+            shortcuts={'formation':'ctrl+alt+f','debug':'ctrl+d'}
+            if tool not in ('main',*shortcuts):raise ValueError('Unknown native tool')
+            self.set_detached(True)
+            def selected():return next((w for w in self.window_state()['windows'] if w['key']==tool),None)
+            if not selected() and tool!='main':
+                self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers',shortcuts[tool])
+            self.wait(selected);return selected()
     def window_stream(self,ident):
         # Only IDs supplied by this SoccerWindow2 process may be exported.
         with self.lock:
