@@ -19,6 +19,7 @@ byId('nativeUpload').onchange=()=>task(async()=>{
 async function listFiles(){const r=await fetch('/native/files',{credentials:'same-origin'});const data=await r.json();if(!r.ok)throw Error(data.error);const target=byId('nativeFiles');target.replaceChildren();for(const name of data){const a=document.createElement('a');a.textContent=name;a.href='/native/download/'+encodeURIComponent(name);a.download=name;const row=document.createElement('div');row.className='native-file-row';row.append(a);const kind=/\.rcg(?:\.gz)?$/i.test(name)?'replay':/\.(conf|json)$/i.test(name)?'formation':null;if(kind){const b=document.createElement('button');b.className='btn';b.textContent=kind==='replay'?'پخش':'ویرایش فرمیشن';b.onclick=()=>task(async()=>{await api('open-file',{name,kind});});row.append(b);}target.append(row);}}
 byId('nativeRefreshFiles').onclick=()=>task(listFiles);
 window.arenaNative={start,refreshFiles:listFiles,isOpen:()=>opened};
+byId('monitorEngine')?.addEventListener('change',()=>{if(opened)byId('nativeFrame').src=byId('monitorEngine').value==='native'?'/native/viewer.html':'about:blank';});
 window.addEventListener('message',e=>{if(e.origin===location.origin&&e.source===byId('nativeFrame').contentWindow&&e.data?.type==='native-connected')message('SoccerWindow2 — نسخهٔ اصلی');});
 // User-entered team names, results JSON, file names and native Qt text are never translated.
 const words={
