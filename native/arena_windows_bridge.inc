@@ -22,10 +22,26 @@ if (!arenaWindows.isEmpty() && !arenaDetached.isEmpty()) {
         QSet<qulonglong> ids;for(auto *w:visible)ids.insert(static_cast<qulonglong>(w->winId()));
         for(auto it=layoutSlots.begin();it!=layoutSlots.end();)if(!ids.contains(it.key()))it=layoutSlots.erase(it);else ++it;
         if(detached!=oldMode){layoutSlots.clear();oldMode=detached;}
+        // Execute outside this timer callback: closeEvent may run a modal event loop.
+        QFile closeRequest(arenaWindows+".close");
+        if(closeRequest.open(QIODevice::ReadOnly)){
+            const auto target=closeRequest.readAll().trimmed().toULongLong();closeRequest.close();closeRequest.remove();
+            for(auto *w:visible)if(w!=this && static_cast<qulonglong>(w->winId())==target){
+                QTimer::singleShot(0,w,[w](){w->close();});break;
+            }
+        }
         QJsonArray windows;
         for(auto *w:visible){
             const auto id=static_cast<qulonglong>(w->winId());
-            if(detached){
+            auto *owner=w->parentWidget()?w->parentWidget()->window():nullptr;
+            const bool attachedDialog=w->isModal() && owner && owner!=w;
+            if(detached && attachedDialog){
+                layoutSlots.remove(id);
+                w->resize(std::min(w->width(),owner->width()),std::min(w->height(),owner->height()));
+                const auto origin=owner->mapToGlobal(QPoint(0,0));
+                const QPoint desired=origin+QPoint((owner->width()-w->width())/2,(owner->height()-w->height())/2);
+                if(w->pos()!=desired)w->move(desired);
+            }else if(detached){
                 if(!layoutSlots.contains(id)){
                     int slot=0;while(layoutSlots.values().contains(slot))++slot;
                     if(slot>=9)continue;layoutSlots.insert(id,slot);
@@ -46,7 +62,7 @@ if (!arenaWindows.isEmpty() && !arenaDetached.isEmpty()) {
             const auto point=w->mapToGlobal(QPoint(0,0));QJsonObject item;
             item["id"]=QString::number(id);item["title"]=w->windowTitle();item["key"]=key;
             item["width"]=w->width();item["height"]=w->height();item["x"]=point.x();item["y"]=point.y();
-            item["modal"]=w->isModal();item["owner"]=w->parentWidget()?QString::number(static_cast<qulonglong>(w->parentWidget()->window()->winId())):QString();windows.append(item);
+            item["attached"]=attachedDialog;item["modal"]=w->isModal();item["owner"]=w->parentWidget()?QString::number(static_cast<qulonglong>(w->parentWidget()->window()->winId())):QString();windows.append(item);
         }
         QJsonObject state;state["windows"]=windows;state["detached"]=detached;
         const auto bytes=QJsonDocument(state).toJson(QJsonDocument::Compact);

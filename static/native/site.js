@@ -6,11 +6,14 @@ async function api(path,body){const r=await fetch('/native/'+path,{method:'POST'
 function message(text){status.textContent=text;}
 async function start(){if(opened)return;message('در حال راه‌اندازی SoccerWindow2…');await api('start');await api('windows-mode',{enabled:false});byId('nativeFrame').src='/native/viewer.html';byId('nativeFrame').hidden=false;opened=true;message('SoccerWindow2 — نسخهٔ اصلی');}
 async function task(fn){try{await fn();}catch(e){message(e.message);}}
-byId('nativeStart').onclick=()=>task(async()=>{if(detached){await api('windows-mode',{enabled:false});opened=false;detached=false;}await start();});
-byId('nativeDetach').onclick=()=>{const popup=window.open('/native/window.html?tool=main','arena-native-main','popup=yes,width=1080,height=800,resizable=yes,scrollbars=no');if(!popup){message('مرورگر پنجرهٔ جدید را مسدود کرد؛ Popup این سایت را مجاز کن.');return;}detached=true;opened=true;byId('nativeFrame').src='about:blank';byId('nativeFrame').hidden=true;message('مانیتور در پنجرهٔ مستقل باز شد؛ برای بازگرداندن، اجرای SoccerWindow2 را بزن.');};
+function detachedUI(value){detached=value;byId('nativeDetach').textContent=value?'بازگرداندن ↙':'جداسازی ↗';byId('nativeDetach').setAttribute('aria-pressed',String(value));}
+async function restore(){await api('windows-mode',{enabled:false});opened=false;detachedUI(false);await start();}
+byId('nativeStart').onclick=()=>task(async()=>{if(detached)await restore();else await start();});
+import('/native/lifecycle.js').then(({watch})=>watch((id)=>{message('برای پاسخ به سؤال ذخیره‌سازی، پنجرهٔ ابزار را دوباره باز کن.');const a=document.createElement('a');a.href='/native/window.html?id='+id;a.target='arena-native-'+id;a.textContent='بازکردن ابزار';status.append(' ',a);})).catch(()=>{});
+byId('nativeDetach').onclick=()=>{if(detached){task(restore);return;}const popup=window.open('/native/window.html?tool=main','arena-native-main','popup=yes,width=1080,height=800,resizable=yes,scrollbars=no');if(!popup){message('مرورگر پنجرهٔ جدید را مسدود کرد؛ Popup این سایت را مجاز کن.');return;}detachedUI(true);opened=true;byId('nativeFrame').src='about:blank';byId('nativeFrame').hidden=true;message('مانیتور در پنجرهٔ مستقل باز شد؛ برای بازگرداندن، «بازگرداندن» را بزن.');};
 byId('nativeConnect').onclick=()=>task(async()=>{if(!job?.id)throw Error('ابتدا یک تست را شروع یا بازیابی کن.');await start();await api('connect',{id:(String(job.api||'').replace(/\/$/,'').endsWith('/personal')?'personal:':'')+job.id});message('اتصال به سرور مسابقه؛ ممکن است تأخیر داشته باشد.');});
 byId('nativeCloseTool').onclick=()=>task(()=>api('close-tool'));
-byId('nativeStop').onclick=()=>task(async()=>{byId('nativeFrame').src='about:blank';byId('nativeFrame').hidden=true;opened=false;await api('stop');message('مانیتور بسته شد؛ مسابقه ادامه دارد.');});
+byId('nativeStop').onclick=()=>task(async()=>{byId('nativeFrame').src='about:blank';byId('nativeFrame').hidden=true;opened=false;detachedUI(false);await api('stop');message('مانیتور بسته شد؛ مسابقه ادامه دارد.');});
 byId('nativeFull').onclick=()=>byId('nativeFrame').requestFullscreen?.();
 byId('nativeUpload').onchange=()=>task(async()=>{
  const files=Array.from(byId('nativeUpload').files||[]);if(!files.length)return;await start();
@@ -24,7 +27,7 @@ byId('monitorEngine')?.addEventListener('change',()=>{if(opened&&!detached)byId(
 window.addEventListener('message',e=>{if(e.origin===location.origin&&e.source===byId('nativeFrame').contentWindow&&e.data?.type==='native-connected')message('SoccerWindow2 — نسخهٔ اصلی');});
 // User-entered team names, results JSON, file names and native Qt text are never translated.
 const words={
-'جداسازی ↗':'Detach ↗','نوع مانیتور':'Monitor type','مانیتور سایت':'Website monitor','شخصی‌سازی ▾':'Customize ▾','رنگ':'Color','زبان':'Language','تم روشن':'Light','تم مشکی':'Dark',
+'بازگرداندن ↙':'Restore ↙','جداسازی ↗':'Detach ↗','نوع مانیتور':'Monitor type','مانیتور سایت':'Website monitor','شخصی‌سازی ▾':'Customize ▾','رنگ':'Color','زبان':'Language','تم روشن':'Light','تم مشکی':'Dark',
 'تست مسابقه دو تیم':'Two-team match tests','تیم سمت چپ':'Left team','تیم سمت راست':'Right team','نام تیم':'Team name',
 'آپلود باینری':'Upload binary','آپلود سورس و بیلد':'Upload source & build','پوشهٔ اجرا بعد از استخراج':'Working folder after extraction','دستور شروع':'Start command',
 'آپلود فایل تیم چپ':'Upload left team ZIP','آپلود فایل تیم راست':'Upload right team ZIP','انتخاب تیم آماده':'Choose preset team',

@@ -36,7 +36,7 @@ class Desktop:
             env.update(DISPLAY=':91',HOME=str(self.root),QT_X11_NO_MITSHM='1',QT_STYLE_OVERRIDE='Fusion')
             env.update(ARENA_FORMATION_PREVIEW=str(self.root/'formation-preview.json'),ARENA_FORMATION_COMMAND=str(self.root/'formation-command.json'))
             env.update(ARENA_WINDOWS_PREVIEW=str(self.root/'windows.json'),ARENA_WINDOWS_DETACHED=str(self.root/'detached'))
-            (self.root/'detached').write_text('0');(self.root/'windows.json').unlink(missing_ok=True)
+            (self.root/'detached').write_text('0');(self.root/'windows.json').unlink(missing_ok=True);(self.root/'windows.json.close').unlink(missing_ok=True)
             self.env=env
             self.broker=MonitorBroker()
             def launch(argv):
@@ -105,6 +105,19 @@ class Desktop:
             if not selected() and tool!='main':
                 self.xdo('windowactivate',self.main_window);self.xdo('key','--clearmodifiers',shortcuts[tool])
             self.wait(selected);return selected()
+    def close_window(self,ident):
+        # Never close the main program, arbitrary X11 windows, or an owner's modal prompt.
+        with self.control_lock:
+            state=self.window_state()
+            record=next((w for w in state['windows'] if w['id']==ident),None)
+            if not state['detached']:return {'ok':True}
+            if not record:return {'ok':True}
+            if record['key']=='main' or record.get('attached'):raise ValueError('Only independent tools can be closed')
+            if any(w.get('modal') and w.get('owner')==ident for w in state['windows']):return {'ok':False,'confirmation':True}
+            target=self.root/'windows.json.close';temp=target.with_suffix('.tmp')
+            self.wait(lambda:not target.exists())
+            temp.write_text(ident);temp.replace(target)
+            return {'ok':True}
     def window_stream(self,ident):
         # Only IDs supplied by this SoccerWindow2 process may be exported.
         with self.lock:
@@ -307,6 +320,8 @@ def handle(h):
                 body=json_body(h)
                 if type(body.get('enabled')) is not bool:raise ValueError('Choose a window mode')
                 h.send(200,DESKTOP.set_detached(body['enabled']));return True
+            if path=='/native/window-close':
+                body=json_body(h);h.send(200,DESKTOP.close_window(str(body.get('id',''))));return True
             if path=='/native/window-tool':
                 body=json_body(h);h.send(200,DESKTOP.open_tool(body.get('tool')));return True
             if path=='/native/start':DESKTOP.start();h.send(200,{'ok':True});return True

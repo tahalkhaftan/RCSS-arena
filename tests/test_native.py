@@ -144,3 +144,15 @@ class WindowExportIsolation(unittest.TestCase):
   with patch.object(DESKTOP,'set_detached'),patch.object(DESKTOP,'main_window','1',create=True),patch.object(DESKTOP,'window_state',return_value={'detached':True,'windows':[record]}),patch.object(DESKTOP,'windows',side_effect=lambda:visible.copy()),patch.object(DESKTOP,'xdo',side_effect=command) as xdo:
    self.assertEqual(DESKTOP.open_tool('formation'),record)
    xdo.assert_any_call('key','--clearmodifiers','ctrl+alt+f')
+
+ def test_closing_a_browser_view_only_closes_an_owned_tool(self):
+  from native_desktop import DESKTOP
+  from tempfile import TemporaryDirectory
+  from pathlib import Path
+  state={'detached':True,'windows':[{'id':'1','key':'main'},{'id':'2','key':'formation'}]}
+  with TemporaryDirectory() as folder,patch.object(DESKTOP,'root',Path(folder)),patch.object(DESKTOP,'window_state',return_value=state):
+   with self.assertRaises(ValueError):DESKTOP.close_window('1')
+   DESKTOP.close_window('999');self.assertFalse((Path(folder)/'windows.json.close').exists())
+   state['windows'].append({'id':'3','key':'window','modal':True,'attached':True,'owner':'2'})
+   self.assertTrue(DESKTOP.close_window('2')['confirmation']);self.assertFalse((Path(folder)/'windows.json.close').exists())
+   state['windows'].pop();DESKTOP.close_window('2');self.assertEqual((Path(folder)/'windows.json.close').read_text(),'2')

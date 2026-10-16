@@ -47,10 +47,16 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');let 
  const size=await formFrame.locator('canvas').evaluate(c=>[c.width,c.height]);assert.deepEqual(size,[formationRecord.width,formationRecord.height]);
  await formFrame.locator('canvas').click({position:{x:Math.min(300,size[0]-20),y:Math.min(200,size[1]-20)}});await formPage.keyboard.press('Control+o');
  let dialog;for(let i=0;i<60;i++){const s=await(await context.request.get(base+'/native/windows')).json();dialog=s.windows.find(w=>w.modal&&w.owner===formationRecord.id);if(dialog)break;await new Promise(r=>setTimeout(r,150));}assert.ok(dialog,'Formation input must open its own native file dialog, not the main monitor dialog');
- const dialogPage=await context.newPage();await dialogPage.goto(base+'/native/window.html?id='+dialog.id);const dialogFrame=await visibleCanvas(dialogPage);await dialogFrame.locator('canvas').click({position:{x:30,y:100}});await dialogPage.keyboard.press('Escape');let dialogClosed=false;for(let i=0;i<60;i++){const s=await(await context.request.get(base+'/native/windows')).json();if(!s.windows.some(w=>w.id===dialog.id)){dialogClosed=true;break;}await new Promise(r=>setTimeout(r,100));}assert.ok(dialogClosed,'Escape in the dialog viewer must close the native modal dialog');await dialogPage.close();
+ assert.equal(dialog.attached,true,'Modal questions must remain inside their owner view');
+ assert.ok(dialog.x>=formationRecord.x&&dialog.y>=formationRecord.y,'Dialog must be inside Formation Editor');
+ const pageCount=context.pages().length;await new Promise(r=>setTimeout(r,1600));assert.equal(context.pages().length,pageCount,'Modal dialog must not open another browser window');
+ await formPage.keyboard.press('Escape');let dialogClosed=false;for(let i=0;i<60;i++){const s=await(await context.request.get(base+'/native/windows')).json();if(!s.windows.some(w=>w.id===dialog.id)){dialogClosed=true;break;}await new Promise(r=>setTimeout(r,100));}assert.ok(dialogClosed,'Escape in the owner viewer must close its native modal dialog');
+ await formPage.reload();await visibleCanvas(formPage);assert.ok((await(await context.request.get(base+'/native/windows')).json()).windows.some(w=>w.id===formationRecord.id),'Reload must preserve the native tool');
+ await formPage.close();let toolClosed=false;for(let i=0;i<80;i++){const s=await(await context.request.get(base+'/native/windows')).json();if(!s.windows.some(w=>w.key==='formation')){toolClosed=true;break;}await new Promise(r=>setTimeout(r,100));}assert.ok(toolClosed,'Browser X must close the actual native editor');
+ await mainPage.waitForFunction(()=>document.querySelector('[data-tool="formation"]').getAttribute('aria-pressed')==='false');
  const debugPopup=context.waitForEvent('page');await mainPage.locator('[data-tool="debug"]').click();const debugPage=await debugPopup;await debugPage.waitForLoadState();await visibleCanvas(debugPage);
  assert.equal((await(await context.request.get(base+'/native-test/windows')).json()).pid,pid,'Detached tools must share the original native process');
  console.log('PASS independent native monitor, formation and debug browser windows, exact cropped framebuffer, formation keyboard routing and shared Qt process');
- await mainPage.close();await formPage.close();await debugPage.close();await context.request.post(base+'/native/windows-mode',{data:{enabled:false}});
+ await mainPage.close();await debugPage.close();await context.request.post(base+'/native/windows-mode',{data:{enabled:false}});
  await context.request.post(base+'/native/close-tool',{data:{}});await browser.close();
 })().catch(async e=>{console.error(e);await browser?.close();process.exitCode=1});
