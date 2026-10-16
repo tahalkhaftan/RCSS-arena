@@ -1,12 +1,13 @@
 /* Optional original Qt desktop alongside the default browser monitor. */
 (()=>{
 const byId=id=>document.getElementById(id),status=byId('nativeStatus');
-let opened=false;
+let opened=false,detached=false;
 async function api(path,body){const r=await fetch('/native/'+path,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});const data=await r.json();if(!r.ok)throw Error(data.error||r.statusText);return data;}
 function message(text){status.textContent=text;}
-async function start(){if(opened)return;message('در حال راه‌اندازی SoccerWindow2…');await api('start');byId('nativeFrame').src='/native/viewer.html';byId('nativeFrame').hidden=false;opened=true;message('SoccerWindow2 — نسخهٔ اصلی');}
+async function start(){if(opened)return;message('در حال راه‌اندازی SoccerWindow2…');await api('start');await api('windows-mode',{enabled:false});byId('nativeFrame').src='/native/viewer.html';byId('nativeFrame').hidden=false;opened=true;message('SoccerWindow2 — نسخهٔ اصلی');}
 async function task(fn){try{await fn();}catch(e){message(e.message);}}
-byId('nativeStart').onclick=()=>task(start);
+byId('nativeStart').onclick=()=>task(async()=>{if(detached){await api('windows-mode',{enabled:false});opened=false;detached=false;}await start();});
+byId('nativeDetach').onclick=()=>{const popup=window.open('/native/window.html?tool=main','arena-native-main','popup=yes,width=1080,height=800,resizable=yes,scrollbars=no');if(!popup){message('مرورگر پنجرهٔ جدید را مسدود کرد؛ Popup این سایت را مجاز کن.');return;}detached=true;opened=true;byId('nativeFrame').src='about:blank';byId('nativeFrame').hidden=true;message('مانیتور در پنجرهٔ مستقل باز شد؛ برای بازگرداندن، اجرای SoccerWindow2 را بزن.');};
 byId('nativeConnect').onclick=()=>task(async()=>{if(!job?.id)throw Error('ابتدا یک تست را شروع یا بازیابی کن.');await start();await api('connect',{id:(String(job.api||'').replace(/\/$/,'').endsWith('/personal')?'personal:':'')+job.id});message('اتصال به سرور مسابقه؛ ممکن است تأخیر داشته باشد.');});
 byId('nativeCloseTool').onclick=()=>task(()=>api('close-tool'));
 byId('nativeStop').onclick=()=>task(async()=>{byId('nativeFrame').src='about:blank';byId('nativeFrame').hidden=true;opened=false;await api('stop');message('مانیتور بسته شد؛ مسابقه ادامه دارد.');});
@@ -19,11 +20,11 @@ byId('nativeUpload').onchange=()=>task(async()=>{
 async function listFiles(){const r=await fetch('/native/files',{credentials:'same-origin'});const data=await r.json();if(!r.ok)throw Error(data.error);const target=byId('nativeFiles');target.replaceChildren();for(const name of data){const a=document.createElement('a');a.textContent=name;a.href='/native/download/'+encodeURIComponent(name);a.download=name;const row=document.createElement('div');row.className='native-file-row';row.append(a);const kind=/\.rcg(?:\.gz)?$/i.test(name)?'replay':/\.(conf|json)$/i.test(name)?'formation':null;if(kind){const b=document.createElement('button');b.className='btn';b.textContent=kind==='replay'?'پخش':'ویرایش فرمیشن';b.onclick=()=>task(async()=>{await api('open-file',{name,kind});});row.append(b);}target.append(row);}}
 byId('nativeRefreshFiles').onclick=()=>task(listFiles);
 window.arenaNative={start,refreshFiles:listFiles,isOpen:()=>opened};
-byId('monitorEngine')?.addEventListener('change',()=>{if(opened)byId('nativeFrame').src=byId('monitorEngine').value==='native'?'/native/viewer.html':'about:blank';});
+byId('monitorEngine')?.addEventListener('change',()=>{if(opened&&!detached)byId('nativeFrame').src=byId('monitorEngine').value==='native'?'/native/viewer.html':'about:blank';});
 window.addEventListener('message',e=>{if(e.origin===location.origin&&e.source===byId('nativeFrame').contentWindow&&e.data?.type==='native-connected')message('SoccerWindow2 — نسخهٔ اصلی');});
 // User-entered team names, results JSON, file names and native Qt text are never translated.
 const words={
-'نوع مانیتور':'Monitor type','مانیتور سایت':'Website monitor','شخصی‌سازی ▾':'Customize ▾','رنگ':'Color','زبان':'Language','تم روشن':'Light','تم مشکی':'Dark',
+'جداسازی ↗':'Detach ↗','نوع مانیتور':'Monitor type','مانیتور سایت':'Website monitor','شخصی‌سازی ▾':'Customize ▾','رنگ':'Color','زبان':'Language','تم روشن':'Light','تم مشکی':'Dark',
 'تست مسابقه دو تیم':'Two-team match tests','تیم سمت چپ':'Left team','تیم سمت راست':'Right team','نام تیم':'Team name',
 'آپلود باینری':'Upload binary','آپلود سورس و بیلد':'Upload source & build','پوشهٔ اجرا بعد از استخراج':'Working folder after extraction','دستور شروع':'Start command',
 'آپلود فایل تیم چپ':'Upload left team ZIP','آپلود فایل تیم راست':'Upload right team ZIP','انتخاب تیم آماده':'Choose preset team',

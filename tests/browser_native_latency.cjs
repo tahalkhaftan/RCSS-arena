@@ -35,5 +35,21 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');let 
  const movingKeyboardMs=Date.now()-now;assert.ok(movingOpened&&movingKeyboardMs<3000,`Input stalled during match: ${movingKeyboardMs}ms`);
  console.log(JSON.stringify({movingMatch:movement,movingKeyboardMs}));
  await page.screenshot({path:'/tmp/native-latency.png'});console.log(JSON.stringify({cpu:0.1,memoryMiB:512,pointerMs,keyboardMs}));
+ // Three browser windows, one native process, each with its own cropped RFB stream.
+ await context.request.post(base+'/native/close-tool',{data:{}});
+ const pid=(await(await context.request.get(base+'/native-test/windows')).json()).pid;
+ const mainPage=await context.newPage();await mainPage.goto(base+'/native/window.html?tool=main');
+ const visibleCanvas=async p=>{await p.locator('#frame').waitFor({state:'visible',timeout:30000});const frame=()=>p.frames().find(f=>f.url().includes('viewer.html?window='));for(let i=0;i<80;i++){const f=frame();if(f&&await f.locator('#desktop canvas').count()&&await f.locator('#desktop canvas').evaluate(c=>c.width>0&&c.height>0))return f;await new Promise(r=>setTimeout(r,200));}throw Error('Per-window VNC did not become visible');};
+ await visibleCanvas(mainPage);
+ const formationPopup=context.waitForEvent('page');await mainPage.locator('[data-tool="formation"]').click();const formPage=await formationPopup;await formPage.waitForLoadState();const formFrame=await visibleCanvas(formPage);
+ const records=(await(await context.request.get(base+'/native/windows')).json()).windows,formationRecord=records.find(w=>w.key==='formation');assert.ok(formationRecord);
+ const size=await formFrame.locator('canvas').evaluate(c=>[c.width,c.height]);assert.deepEqual(size,[formationRecord.width,formationRecord.height]);
+ await formFrame.locator('canvas').click({position:{x:Math.min(300,size[0]-20),y:Math.min(200,size[1]-20)}});await formPage.keyboard.press('Control+o');
+ let dialog;for(let i=0;i<60;i++){const s=await(await context.request.get(base+'/native/windows')).json();dialog=s.windows.find(w=>w.modal&&w.owner===formationRecord.id);if(dialog)break;await new Promise(r=>setTimeout(r,150));}assert.ok(dialog,'Formation input must open its own native file dialog, not the main monitor dialog');
+ const dialogPage=await context.newPage();await dialogPage.goto(base+'/native/window.html?id='+dialog.id);await visibleCanvas(dialogPage);await dialogPage.keyboard.press('Escape');await dialogPage.close();
+ const debugPopup=context.waitForEvent('page');await mainPage.locator('[data-tool="debug"]').click();const debugPage=await debugPopup;await debugPage.waitForLoadState();await visibleCanvas(debugPage);
+ assert.equal((await(await context.request.get(base+'/native-test/windows')).json()).pid,pid,'Detached tools must share the original native process');
+ console.log('PASS independent native monitor, formation and debug browser windows, exact cropped framebuffer, formation keyboard routing and shared Qt process');
+ await mainPage.close();await formPage.close();await debugPage.close();await context.request.post(base+'/native/windows-mode',{data:{enabled:false}});
  await context.request.post(base+'/native/close-tool',{data:{}});await browser.close();
 })().catch(async e=>{console.error(e);await browser?.close();process.exitCode=1});
