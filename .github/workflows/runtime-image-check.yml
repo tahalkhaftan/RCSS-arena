@@ -1,0 +1,76 @@
+name: Verify prepared match environment
+on:
+  push:
+    paths:
+      - 'runtime/**'
+      - 'team_build.py'
+      - 'vendor/rcssserver-19.0.0/**'
+      - '.github/workflows/prepare-runtime.yml'
+      - '.github/workflows/runtime-image-check.yml'
+      - '.github/workflows/matches.yml'
+      - '.github/workflows/build-team.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  runtime:
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/prepare-runtime.yml
+  official-bases:
+    needs: runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.runtime.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        base: [school, university]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build official team using only its prepared API
+        run: python3 scripts/verify_source_build.py '${{ matrix.base }}'
+        env:
+          ARENA_REQUIRE_PREBUILT: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prepared-source-${{ matrix.base }}
+          path: source-build-*.log
+          retention-days: 3
+  real-matches:
+    needs: runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.runtime.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Complete real matches without installing or building the server
+        run: PYTHONPATH=. python3 scripts/verify_team_runtime.py
+        env:
+          MATCH_TIMEOUT_SECONDS: '400'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prepared-runtime-matches
+          path: runtime-verification
+          retention-days: 3

@@ -100,3 +100,41 @@ class TeamBuild(unittest.TestCase):
         self.assertEqual(validate(base)['left']['input_mode'],'binary')
         base['left'].update(input_mode='source',base='school',source_directory='../escape')
         with self.assertRaises(ValueError):validate(base)
+
+class PreparedLibraries(unittest.TestCase):
+    project=TeamBuild.project
+    def test_prepared_build_selects_exact_api_and_bundles_only_its_libraries(self):
+        from team_build import LIBRARIES,prepared_library
+        from build_store import pack_compiled
+        for base in ('school','university'):
+            with self.subTest(base=base),tempfile.TemporaryDirectory() as d:
+                outer=Path(d);root=outer/'team';root.mkdir();p=self.project(root)
+                (p/'src').mkdir();(p/'configure.ac').write_text('AC_CHECK_LIB([rcsc],[main])')
+                if base=='school':(p/'CMakeLists.txt').write_text('project(rcsc)')
+                manifest={}
+                for kind,(repo,revision) in LIBRARIES.items():
+                    prefix=outer/kind;(prefix/'include'/'rcsc').mkdir(parents=True);(prefix/'include'/'rcsc'/'types.h').write_text(kind)
+                    (prefix/'lib').mkdir();(prefix/'lib'/'librcsc.so.18').write_bytes(kind.encode())
+                    manifest[kind]={'repository':repo,'revision':revision,'prefix':str(prefix)}
+                path=outer/'manifest.json';path.write_text(json.dumps(manifest));commands=[]
+                class Process:
+                    pid=123;returncode=0
+                    def poll(self):return 0
+                def spawn(command,**kw):
+                    commands.append((command,kw['env'].copy()))
+                    (p/'build'/'bin').mkdir(parents=True,exist_ok=True)
+                    return Process()
+                team={'base':base}
+                with patch.dict(os.environ,{'ARENA_PREBUILT_LIBRARIES':str(path)}),patch('team_build.subprocess.Popen',side_effect=spawn):
+                    self.assertEqual(prepared_library(base),outer/base)
+                    build_team(team,root,outer/'log',threading.Event())
+                self.assertFalse(any(c[0][0]=='git' for c in commands))
+                for _,env in commands:
+                    self.assertEqual(env['CMAKE_PREFIX_PATH'],str(outer/base))
+                    self.assertEqual(env['PKG_CONFIG_PATH'],str(outer/base/'lib'/'pkgconfig'))
+                    self.assertTrue(env['LD_LIBRARY_PATH'].startswith(str(outer/base/'lib')))
+                with zipfile.ZipFile(io.BytesIO(pack_compiled(team,root))) as archive:
+                    self.assertEqual(archive.read('lib/librcsc.so.18'),base.encode())
+                manifest[base]['revision']='wrong';path.write_text(json.dumps(manifest))
+                with patch.dict(os.environ,{'ARENA_PREBUILT_LIBRARIES':str(path)}):
+                    with self.assertRaisesRegex(ValueError,'pinned API'):prepared_library(base)

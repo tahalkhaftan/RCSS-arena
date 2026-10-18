@@ -1,5 +1,5 @@
 """One-time source builds, on the match worker, for trusted uploaded teams."""
-import os,signal,subprocess,time,shutil
+import os,signal,subprocess,time,shutil,json
 from pathlib import Path
 
 class BuildCancelled(Exception):pass
@@ -30,6 +30,23 @@ LIBRARIES={
     'school':('RCSS-IR/StarterLibRCSC-V2','af506602e0c7f4872101a86c63e1a9f662602b8b'),
     'university':('helios-base/librcsc','078d59ff85c336f94c021adac060ef6f2e63c575'),
 }
+
+
+def prepared_library(base):
+    """Use a prepared API only if its repository AND exact revision match."""
+    manifest=os.environ.get('ARENA_PREBUILT_LIBRARIES')
+    if not manifest:return None
+    try:
+        item=json.loads(Path(manifest).read_text())[base]
+        repo,revision=LIBRARIES[base]
+        if item['repository']!=repo or item['revision']!=revision:
+            raise ValueError('Prepared '+base+' library does not match the selected pinned API; rebuild the runtime image')
+        prefix=Path(item['prefix']).resolve()
+        if not (prefix/'include'/'rcsc'/'types.h').is_file() or not list((prefix/'lib').glob('librcsc*.so*')):
+            raise ValueError('Prepared '+base+' library is incomplete; rebuild the runtime image')
+        return prefix
+    except (OSError,KeyError,TypeError,json.JSONDecodeError) as exc:
+        raise ValueError('Prepared library manifest is invalid; rebuild the runtime image') from exc
 
 
 def _stop(proc):
@@ -73,20 +90,32 @@ def build_team(team,root,log_path,cancel,on_stage=lambda stage:None):
             prefix=None
             if needs_rcsc:
                 deps=root/'.arena-deps';deps.mkdir(exist_ok=True)
-                # StarterLibRCSC's own CMake forces this documented install prefix.
-                prefix=Path.home()/'local'/'starter' if base=='school' else deps/'install'
-                lib=deps/'librcsc';repo,revision=LIBRARIES[base]
-                run(['git','init',str(lib)],deps)
-                run(['git','-C',str(lib),'fetch','--depth','1','https://github.com/'+repo+'.git',revision],deps)
-                run(['git','-C',str(lib),'checkout','--detach','FETCH_HEAD'],deps)
-                if base=='school':
-                    run(['cmake','-S',str(lib),'-B',str(deps/'lib-build'),'-DCMAKE_INSTALL_LIBDIR=lib'],deps)
-                    run(['cmake','--build',str(deps/'lib-build'),'--parallel','8'],deps)
-                    run(['cmake','--install',str(deps/'lib-build')],deps)
+                repo,revision=LIBRARIES[base]
+                prefix=prepared_library(base)
+                if prefix:
+                    log.write('Using prepared '+base+' library: '+repo+' @ '+revision+'\n');log.flush()
                 else:
-                    run(['./bootstrap'],lib)
-                    run(['./configure','--disable-unit-test','--prefix='+str(prefix)],lib)
-                    run(['make','-j','8'],lib);run(['make','install'],lib)
+                    # Personal workers and older images retain the exact pinned build path.
+                    prefix=Path.home()/'local'/'starter' if base=='school' else deps/'install'
+                    lib=deps/'librcsc'
+                    run(['git','init',str(lib)],deps)
+                    run(['git','-C',str(lib),'fetch','--depth','1','https://github.com/'+repo+'.git',revision],deps)
+                    run(['git','-C',str(lib),'checkout','--detach','FETCH_HEAD'],deps)
+                    if base=='school':
+                        run(['cmake','-S',str(lib),'-B',str(deps/'lib-build'),'-DCMAKE_INSTALL_LIBDIR=lib'],deps)
+                        run(['cmake','--build',str(deps/'lib-build'),'--parallel','8'],deps)
+                        run(['cmake','--install',str(deps/'lib-build')],deps)
+                    else:
+                        run(['./bootstrap'],lib)
+                        run(['./configure','--disable-unit-test','--prefix='+str(prefix)],lib)
+                        run(['make','-j','8'],lib);run(['make','install'],lib)
+                # Reusable team ZIPs must carry only this base's shared libraries,
+                # including school installs outside the uploaded source directory.
+                bundled=deps/'runtime-lib';bundled.mkdir(exist_ok=True)
+                for library in (prefix/'lib').glob('*.so*'):
+                    if library.is_file():shutil.copyfile(library,bundled/library.name)
+                env['PKG_CONFIG_PATH']=str(prefix/'lib'/'pkgconfig')
+                env['CMAKE_PREFIX_PATH']=str(prefix)
                 env['LD_LIBRARY_PATH']=str(prefix/'lib')+(':'+env['LD_LIBRARY_PATH'] if env.get('LD_LIBRARY_PATH') else '')
             if base=='school':
                 build=chosen/'build';build.mkdir(exist_ok=True)
@@ -94,7 +123,7 @@ def build_team(team,root,log_path,cancel,on_stage=lambda stage:None):
                 (build/'CMakeCache.txt').unlink(missing_ok=True)
                 if (build/'CMakeFiles').is_dir():shutil.rmtree(build/'CMakeFiles')
                 command=['cmake','..']
-                if prefix:command+=['-DLIBRCSC_INSTALL_DIR='+str(prefix)]
+                if prefix:command+=['-DLIBRCSC_INSTALL_DIR='+str(prefix),'-DCMAKE_PREFIX_PATH='+str(prefix)]
                 run(command,build);run(['make','-j','8'],build)
                 runtime=build/'bin'
             else:
