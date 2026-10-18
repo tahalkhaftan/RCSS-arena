@@ -1,0 +1,24 @@
+name: Verify complete cloud match
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s tests -v
+      - run: node tests/ui_polling.cjs
+      - name: Verify real match through portal HTTP routes
+        run: PYTHONPATH=. python3 scripts/verify_cloud_match.py
+        env:
+          STORAGE_TOKEN: ${{ secrets.STORAGE_TOKEN }}
+          STORAGE_REPOSITORY: ${{ vars.STORAGE_REPOSITORY }}
+          SOURCE_RELEASE_ID: '404071868'

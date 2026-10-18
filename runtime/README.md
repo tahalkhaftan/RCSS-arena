@@ -32,7 +32,7 @@ server source remains in this public repository. Team uploads, private results,
 tokens and account settings are never baked into the image. Publishing uses the
 workflow's own `GITHUB_TOKEN`; there is no new user PAT or Render setting to add.
 The package may remain private; jobs authenticate to pull it with package-read
-permission. A single publisher serializes cold builds. Only preparation has
+permission. Concurrent requests can reuse the same published image. Only preparation has
 package-write permission; match/build jobs have package-read permission.
 
 `Verify prepared match environment` builds both pinned official agent bases,

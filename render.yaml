@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: rcss-arena-public
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ARENA_USER
+        sync: false
+      - key: ARENA_PASSWORD
+        sync: false
+      - key: GITHUB_REPOSITORY
+        value: tahalkhaftan/RCSS-arena
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: STORAGE_REPOSITORY
+        value: tahalkhaftan/RCSS-arena-data
+      - key: GITHUB_REF
+        value: main

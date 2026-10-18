@@ -1,0 +1,33 @@
+name: Verify source team builds
+on:
+  push:
+    paths:
+      - team_build.py
+      - scripts/verify_source_build.py
+      - .github/workflows/source-build-check.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  official-bases:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        base: [school, university]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential cmake autoconf automake libtool pkg-config libboost-all-dev zlib1g-dev
+      - name: Compile official team and its matching library
+        run: python3 scripts/verify_source_build.py "${{ matrix.base }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-build-${{ matrix.base }}
+          path: source-build-*.log

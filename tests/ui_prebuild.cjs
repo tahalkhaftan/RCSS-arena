@@ -1,0 +1,21 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const harness=fs.readFileSync('tests/ui_monitor.cjs','utf8').split('const frame={')[0];
+eval('(()=>{'+harness.replace("const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');",'')+';globalThis.prebuildHarness={context,el};})()');
+const {context,el}=globalThis.prebuildHarness;
+el('leftInputMode').value='source';el('leftBase').value='university';el('leftName').value='Team';el('leftCmd').value='./start.sh';el('leftFile').files=[{name:'source.zip',size:1}];el('leftSourceDir').value='';el('leftInputMode').change();
+assert.equal(el('leftSourceBuildControls').className,'');assert.equal(el('leftBuildButton').textContent,'بیلد');
+assert.throws(()=>context.requireSourceBuilds('https://arena.test'),/ابتدا/);
+const bodies=[];context.FormData=class{constructor(){this.parts=[];bodies.push(this);}append(...args){this.parts.push(args);}};
+context.fetch=async(url,options)=>({ok:true,json:async()=>url.endsWith('/api/builds')?{id:'71'}:{status:'completed',stage:'done'},text:async()=>'full terminal output'});
+(async()=>{
+ await context.beginSourceBuild('left');assert.equal(el('leftBuildButton').textContent,'بیلد موفق ✓');
+ context.requireSourceBuilds('https://arena.test');assert.equal(context.teamSettings('left').build_id,'71');
+ assert.equal(bodies[0].parts[0][0],'source_file');
+ el('leftCmd').value='./new.sh';el('leftCmd').input();assert.equal(el('leftBuildButton').textContent,'بیلد');
+ assert.throws(()=>context.requireSourceBuilds('https://arena.test'),/ابتدا/);
+ context.fetch=async(url)=>({ok:true,json:async()=>url.endsWith('/api/builds')?{id:'72'}:{status:'failed',error:'compiler failed',stage:'make'},text:async()=>'FULL COMPILER ERROR'});
+ await context.beginSourceBuild('left');assert.equal(el('leftSourceBuildError').className,'source-build-errors');
+ assert.throws(()=>context.requireSourceBuilds('https://arena.test'),/خطا داده/);
+ await context.loadSourceBuildLog('left');assert.equal(el('leftSourceBuildLog').textContent,'FULL COMPILER ERROR');
+ console.log('PASS: independent source build, success gate, changed settings invalidation, failed build gate and full logs');
+})().catch(e=>{console.error(e);process.exitCode=1;});
