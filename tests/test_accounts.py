@@ -43,26 +43,42 @@ class Accounts(unittest.TestCase):
     def config(self, games=1, **kw):
         return {'rounds': 1, 'games_per_round': games, **kw}
 
-    def test_free_total_and_run_limits_survive_new_connections(self):
-        for _ in range(5):
-            ticket = accounts.reserve(fixture(), self.config())
-            accounts.finish(ticket, True)
-        with self.assertRaises(ValueError):
-            accounts.reserve(fixture(), self.config())
-        with accounts.database() as db:
-            row = db.execute('SELECT runs,games FROM people WHERE id=?', ('google:test',)).fetchone()
-        self.assertEqual(tuple(row), (5, 5))
-
-    def test_failed_submission_refund_is_idempotent(self):
+    def test_signed_in_quota_is_30_games_per_rolling_24_hours(self):
         h = fixture()
-        ticket = accounts.reserve(h, self.config(5))
+        now = 1900000000
+        with patch('accounts.time.time', return_value=now):
+            accounts.finish(accounts.reserve(h, self.config(20)), True)
+        with patch('accounts.time.time', return_value=now+3600):
+            accounts.finish(accounts.reserve(fixture(), self.config(10)), True)
+            self.assertEqual(accounts.quota_status(h.account)['remaining_games'], 0)
+            with self.assertRaises(ValueError):
+                accounts.reserve(h, self.config())
+        with patch('accounts.time.time', return_value=now+86400):
+            self.assertEqual(accounts.quota_status(h.account)['remaining_games'], 20)
+            accounts.finish(accounts.reserve(h, self.config(20)), True)
+            with self.assertRaises(ValueError):
+                accounts.reserve(h, self.config())
+        with patch('accounts.time.time', return_value=now+90000):
+            self.assertEqual(accounts.quota_status(h.account)['remaining_games'], 10)
+
+    def test_rejected_submission_refund_is_idempotent(self):
+        h = fixture()
+        ticket = accounts.reserve(h, self.config(30))
         accounts.finish(ticket, False)
         accounts.finish(ticket, False)
-        accounts.finish(accounts.reserve(h, self.config(5)), True)
+        self.assertEqual(accounts.quota_status(h.account)['remaining_games'], 30)
+        accounts.finish(accounts.reserve(h, self.config(30)), True)
         with self.assertRaises(ValueError):
             accounts.reserve(h, self.config())
 
-    def test_simultaneous_requests_cannot_overspend_free_quota(self):
+    def test_multiple_rounds_count_every_game(self):
+        h = fixture()
+        accounts.finish(accounts.reserve(h, {'rounds': 5, 'games_per_round': 6}), True)
+        self.assertEqual(accounts.quota_status(h.account)['remaining_games'], 0)
+        with self.assertRaises(ValueError):
+            accounts.reserve(fixture('google:other'), self.config(31))
+
+    def test_simultaneous_requests_cannot_overspend_daily_quota(self):
         h = fixture()
         def submit(_):
             try:
@@ -71,7 +87,7 @@ class Accounts(unittest.TestCase):
             except ValueError:
                 return False
         with ThreadPoolExecutor(max_workers=8) as pool:
-            self.assertEqual(sum(pool.map(submit, range(12))), 5)
+            self.assertEqual(sum(pool.map(submit, range(42))), 30)
 
     def test_plus_batch_cap_unlimited_runs_and_no_tier_forgery(self):
         h = fixture(tier='plus')
@@ -195,6 +211,22 @@ class AccountHTTP(unittest.TestCase):
         with accounts.database() as db:
             db.execute('UPDATE people SET expires=? WHERE id=?', (time.time()-1, 'google:test'))
         self.assertEqual(json.loads(self.request('/api/account'))['tier'], 'free')
+
+    def test_signin_signup_pages_and_daily_api_quota(self):
+        for path in ('/login', '/signin', '/signup'):
+            page = self.request(path)
+            self.assertIn(b'/auth-ui.js', page)
+            self.assertIn('۳۰ بازی'.encode(), page)
+        self.assertIn(b"location.assign('/auth/google')", self.request('/auth-ui.js'))
+        self.login_user()
+        account = json.loads(self.request('/api/account'))
+        self.assertEqual(account['remaining_games'], 30)
+        self.assertEqual(account['quota_window_seconds'], 86400)
+        accounts.finish(accounts.reserve(fixture(), self.config(12)), True)
+        self.assertEqual(json.loads(self.request('/api/account'))['remaining_games'], 18)
+        self.request('/api/auth/logout', {})
+        self.login_user()
+        self.assertEqual(json.loads(self.request('/api/account'))['remaining_games'], 18)
 
     def test_payment_and_owner_login_reject_cross_origin_or_missing_origin(self):
         with self.assertRaises(urllib.error.HTTPError) as error:

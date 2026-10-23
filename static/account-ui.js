@@ -8,8 +8,8 @@
   try{
    account=await api('/api/account');
    el('accountStatus').textContent=account.owner?'مالک سایت · دسترسی کامل و رایگان':account.guest?'حالت مهمان':account.email;
-   el('accountQuota').textContent=['pro','plus','owner'].includes(account.tier)?(account.owner?'بدون نیاز به خرید اشتراک':`${account.tier==='pro'?'پرو':'پلاس'} · معتبر تا ${new Date(account.expires*1000).toLocaleDateString('fa-IR')} · تعداد نوبت نامحدود`):`${fa(account.remaining_runs)} نوبت و ${fa(account.remaining_games)} بازی رایگان باقی مانده`;
-   el('accountLogin').hidden=!account.guest;el('accountLogout').hidden=account.guest;
+   el('accountQuota').textContent=['pro','plus','owner'].includes(account.tier)?(account.owner?'بدون نیاز به خرید اشتراک':`${account.tier==='pro'?'پرو':'پلاس'} · معتبر تا ${new Date(account.expires*1000).toLocaleDateString('fa-IR')} · تعداد نوبت نامحدود`):account.guest?`${fa(account.remaining_games)} بازی مهمان باقی مانده`:`${fa(account.remaining_games)} از ۳۰ بازی · ۲۴ ساعت اخیر`;
+   el('accountLogin').hidden=!account.guest;el('accountSignup').hidden=!account.guest;el('accountLogout').hidden=account.guest;
    el('paymentForm').hidden=account.owner;el('adminPayments').hidden=!account.owner;
    for(const id of ['offlineLogging','debugLogging']){el(id).disabled=!['pro','owner'].includes(account.tier);if(el(id).disabled)el(id).checked=false;}
    if(account.owner)await loadPending();

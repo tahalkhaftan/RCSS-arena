@@ -28,6 +28,8 @@ CARD = '6219861351359095'
 PLANS = {'plus': {'name': 'پلاس', 'price': 30000, 'original_price': 50000, 'max_games': 100},
          'pro': {'name': 'پرو', 'price': 50000, 'original_price': 70000, 'max_games': 500}}
 COOKIE = 'arena_session'
+DAILY_GAMES = 30
+QUOTA_WINDOW = 24 * 60 * 60
 
 
 @contextmanager
@@ -48,6 +50,9 @@ def database():
             CREATE TABLE IF NOT EXISTS jobs (kind TEXT NOT NULL, id TEXT NOT NULL, person TEXT NOT NULL, PRIMARY KEY(kind,id));
             CREATE TABLE IF NOT EXISTS guest_usage (key TEXT PRIMARY KEY, runs INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS reservation_buckets (id TEXT PRIMARY KEY, key TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS quota_events (id TEXT PRIMARY KEY, person TEXT NOT NULL,
+                games INTEGER NOT NULL, created REAL NOT NULL);
+            CREATE INDEX IF NOT EXISTS quota_events_person_time ON quota_events(person,created);
             CREATE TABLE IF NOT EXISTS reservations (id TEXT PRIMARY KEY, person TEXT NOT NULL, games INTEGER NOT NULL, free INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, person TEXT NOT NULL, plan TEXT NOT NULL,
                 amount INTEGER NOT NULL, reference TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending',
@@ -179,7 +184,7 @@ def reserve(h, config):
     account = identity(h)
     tier = account['tier']
     count = config['rounds'] * config['games_per_round']
-    limit = PLANS.get(tier, {}).get('max_games', 500 if tier == 'owner' else 5)
+    limit = PLANS.get(tier, {}).get('max_games', 500 if tier == 'owner' else 5 if account['guest'] else DAILY_GAMES)
     if count > limit:
         raise ValueError(f'سقف هر درخواست برای حساب شما {limit} بازی است.')
     if tier not in ('pro', 'owner') and (config.get('offline_logging') or config.get('debug_logging')):
@@ -188,18 +193,37 @@ def reserve(h, config):
     ticket = secrets.token_hex(16)
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
-        if tier == 'free':
+        if tier == 'free' and not account['guest']:
+            used = db.execute('SELECT COALESCE(SUM(games),0) FROM quota_events WHERE person=? AND created>?',
+                              (account['id'], time.time()-QUOTA_WINDOW)).fetchone()[0]
+            if used + count > DAILY_GAMES:
+                raise ValueError('سهمیهٔ ۳۰ بازی در ۲۴ ساعت تکمیل شده است. کمی بعد دوباره امتحان کن.')
+            db.execute('INSERT INTO quota_events VALUES (?,?,?,?)', (ticket, account['id'], count, time.time()))
+        elif tier == 'free':
             updated = db.execute('UPDATE people SET runs=runs+1,games=games+? WHERE id=? AND runs<5 AND games+?<=5', (count, account['id'], count))
-            if account['guest']:
-                db.execute('INSERT OR IGNORE INTO guest_usage(key) VALUES (?)', (account['bucket'],))
-                bucket = db.execute('UPDATE guest_usage SET runs=runs+1,games=games+? WHERE key=? AND runs<5 AND games+?<=5', (count, account['bucket'], count))
-                if bucket.rowcount != 1:
-                    raise ValueError('سهمیهٔ رایگان این اتصال تمام شده؛ با حساب گوگل وارد شو و اشتراک بخر.')
-                db.execute('INSERT INTO reservation_buckets VALUES (?,?)', (ticket, account['bucket']))
+            db.execute('INSERT OR IGNORE INTO guest_usage(key) VALUES (?)', (account['bucket'],))
+            bucket = db.execute('UPDATE guest_usage SET runs=runs+1,games=games+? WHERE key=? AND runs<5 AND games+?<=5', (count, account['bucket'], count))
+            if bucket.rowcount != 1:
+                raise ValueError('سهمیهٔ مهمان تمام شده؛ با گوگل وارد شو و روزانه ۳۰ بازی اجرا کن.')
+            db.execute('INSERT INTO reservation_buckets VALUES (?,?)', (ticket, account['bucket']))
             if updated.rowcount != 1:
-                raise ValueError('سهمیهٔ رایگان تمام شده: حداکثر ۵ نوبت و مجموعاً ۵ بازی. برای ادامه اشتراک بخر.')
+                raise ValueError('سهمیهٔ مهمان تمام شده؛ با گوگل وارد شو و روزانه ۳۰ بازی اجرا کن.')
         db.execute('INSERT INTO reservations VALUES (?,?,?,?)', (ticket, account['id'], count, int(tier == 'free')))
     return ticket
+
+
+def quota_status(account):
+    if account['tier'] != 'free':
+        return {'remaining_games': None, 'remaining_runs': None, 'quota_limit': None, 'quota_reset_at': None, 'quota_window_seconds': None}
+    if account['guest']:
+        return {'remaining_games': max(0, 5-account['games']), 'remaining_runs': max(0, 5-account['runs']),
+                'quota_limit': 5, 'quota_reset_at': None, 'quota_window_seconds': None}
+    with database() as db:
+        used = db.execute('SELECT COALESCE(SUM(games),0),MIN(created) FROM quota_events WHERE person=? AND created>?',
+                          (account['id'], time.time()-QUOTA_WINDOW)).fetchone()
+    return {'remaining_games': max(0, DAILY_GAMES-used[0]), 'remaining_runs': None,
+            'quota_limit': DAILY_GAMES, 'quota_reset_at': used[1]+QUOTA_WINDOW if used[1] is not None else None,
+            'quota_window_seconds': QUOTA_WINDOW}
 
 
 def finish(ticket, success):
@@ -209,6 +233,7 @@ def finish(ticket, success):
         db.execute('BEGIN IMMEDIATE')
         row = db.execute('SELECT * FROM reservations WHERE id=?', (ticket,)).fetchone()
         if row and not success and row['free']:
+            db.execute('DELETE FROM quota_events WHERE id=?', (ticket,))
             db.execute('UPDATE people SET runs=MAX(0,runs-1),games=MAX(0,games-?) WHERE id=?', (row['games'], row['person']))
         bucket = db.execute('SELECT key FROM reservation_buckets WHERE id=?', (ticket,)).fetchone()
         if row and bucket and not success:
@@ -313,10 +338,10 @@ def month_after(timestamp):
 
 def routes(h):
     path = urllib.parse.urlparse(h.path).path
-    if path == '/account-ui.js' and h.command == 'GET':
-        h.send(200, (Path(__file__).parent / 'static/account-ui.js').read_bytes(), 'application/javascript; charset=utf-8')
+    if path in ('/account-ui.js', '/auth-ui.js') and h.command == 'GET':
+        h.send(200, (Path(__file__).parent / 'static' / path.lstrip('/')).read_bytes(), 'application/javascript; charset=utf-8')
         return True
-    if path == '/login' and h.command == 'GET':
+    if path in ('/login', '/signin', '/signup') and h.command == 'GET':
         h.send(200, (Path(__file__).parent / 'static/login.html').read_bytes(), 'text/html; charset=utf-8')
         return True
     if path not in ('/api/account', '/auth/google', '/auth/google/callback', '/api/auth/owner', '/api/auth/logout', '/api/payments', '/api/admin/payments') and not path.startswith('/api/admin/payments/'):
@@ -331,8 +356,7 @@ def routes(h):
         if path == '/api/account' and h.command == 'GET':
             ready = bool(os.environ.get('GOOGLE_CLIENT_ID') and os.environ.get('GOOGLE_CLIENT_SECRET') and os.environ.get('ARENA_PUBLIC_URL'))
             h.send(200, {'email': account['email'], 'guest': account['guest'], 'owner': account['owner'],
-                'tier': account['tier'], 'expires': account['expires'], 'remaining_runs': max(0, 5-account['runs']),
-                'remaining_games': max(0, 5-account['games']), 'plans': PLANS, 'card': CARD, 'google_ready': ready})
+                'tier': account['tier'], 'expires': account['expires'], **quota_status(account), 'plans': PLANS, 'card': CARD, 'google_ready': ready})
         elif path == '/auth/google' and h.command == 'GET':
             client, _, callback = google_settings()
             state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
@@ -365,8 +389,6 @@ def routes(h):
                 db.execute('BEGIN IMMEDIATE')
                 db.execute('INSERT INTO people(id,email) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET email=excluded.email', (person, profile['email']))
                 if account['guest']:
-                    guest = db.execute('SELECT runs,games FROM people WHERE id=?', (account['id'],)).fetchone()
-                    db.execute('UPDATE people SET runs=MAX(runs,?),games=MAX(games,?) WHERE id=?', (guest['runs'], guest['games'], person))
                     db.execute('UPDATE jobs SET person=? WHERE person=?', (person, account['id']))
                 db.execute('DELETE FROM sessions WHERE token=?', (digest(cookie_value(h)),))
                 new_session(h, db, person)

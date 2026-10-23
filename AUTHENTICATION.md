@@ -1,7 +1,9 @@
 # Accounts, subscriptions and authentication
 
-The web UI is public and `/login` offers Google login plus a separate owner
-login. The Google password is never collected by Arena. Existing HTTP Basic
+The web UI is public. `/login` (also `/signin`) and `/signup` provide
+Google sign-in and sign-up with a shared OAuth flow. First login creates the
+account; subsequent logins use the same Google `sub`. A separate owner login
+remains available. The Google password is never collected by Arena. Existing HTTP Basic
 owner credentials continue to work for administration and the personal worker.
 
 ## Deployment
@@ -63,15 +65,24 @@ or conversion of purchased days occurs.
 
 | Plan | Original price | Current price | Requests | Games per request | Files |
 | --- | --- | --- | --- | --- | --- |
-| Free / guest | 0 | 0 | 5 total | At most 5 games **in total** | RCG, RCL, JSON |
+| Guest | 0 | 0 | 5 total | At most 5 games **in total** | RCG, RCL, JSON |
+| Free Google account | 0 | 0 | Within the daily game allowance | 30 games per rolling 24 hours | RCG, RCL, JSON |
 | Plus | 50,000 | 30,000 | Unlimited during the month | 100 | RCG, RCL, JSON |
 | Pro | 70,000 | 50,000 | Unlimited during the month | Existing technical cap of 500 | All exports |
 | Owner | — | Free | Unlimited | Existing technical cap of 500 | All exports |
 
-Google login preserves the consumed guest allowance. Free submissions reserve
-quota atomically; submissions rejected before dispatch release that reservation.
-Accepted jobs (including later failed/cancelled matches) consume their allowance.
-A request split over multiple rounds still counts every game.
+Signed-in free users receive 30 games in a rolling 24-hour window. Each accepted
+submission records its total game count and server timestamp. Games become
+available individually 24 hours after their submission, with no midnight or
+browser-time reset. Logout, repeated Google login and service restart preserve
+this ledger. Guest usage remains separate and does not reduce the signed-in
+30-game allowance. Plus, Pro and owner allowances remain unchanged.
+
+Free submissions reserve quota atomically; submissions rejected before dispatch
+release that reservation. Accepted jobs (including later failed/cancelled
+matches) consume their allowance. A request split over multiple rounds still
+counts every game. `/api/account` reports remaining games, the window length
+and the next release time for consumed quota.
 
 Payments are manual card transfers to **6219861351359095**. The site displays
 the recipient card; it does not initiate a transfer or claim to verify a bank

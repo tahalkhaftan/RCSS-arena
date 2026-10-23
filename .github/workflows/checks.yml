@@ -20,6 +20,7 @@ jobs:
       - run: node tests/ui_prebuild.cjs
       - run: node tests/ui_offline.cjs
       - run: node tests/ui_player_rcg.cjs
+      - run: node tests/ui_auth.cjs
       - run: node tests/ui_workbench.cjs
       - run: node tests/ui_personal.cjs
       - run: node tests/ui_auto_next.cjs

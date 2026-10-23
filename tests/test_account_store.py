@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -42,6 +43,8 @@ class AccountStore(unittest.TestCase):
             try:
                 with accounts.database() as db:
                     db.execute("INSERT INTO people(id,plan,expires,games) VALUES ('paid','pro',9999999999,5)")
+                    db.execute("INSERT INTO people(id) VALUES ('google:free')")
+                    db.execute("INSERT INTO quota_events VALUES ('daily','google:free',7,?)", (time.time(),))
                 self.assertTrue(gh.items)
                 gh.fail = True
                 with self.assertRaises(OSError):
@@ -55,6 +58,7 @@ class AccountStore(unittest.TestCase):
                 with accounts.database() as db:
                     row = db.execute("SELECT plan,games FROM people WHERE id='paid'").fetchone()
                     self.assertEqual(tuple(row), ('pro', 5))
+                self.assertEqual(accounts.quota_status({'id': 'google:free', 'tier': 'free', 'guest': False})['remaining_games'], 23)
             finally:
                 account_store.READY.clear()
 
