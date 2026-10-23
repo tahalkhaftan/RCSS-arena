@@ -195,29 +195,22 @@ class AccountHTTP(unittest.TestCase):
         accounts.bind(account, 'tests', 'secret')
         self.assertFalse(accounts.owns({'id': person2, 'owner': False}, 'tests', 'secret'))
 
-    def test_subscription_requires_owner_confirmation_and_cannot_be_approved_twice(self):
+    def test_manual_receipts_and_owner_approval_are_disabled(self):
         self.login_user()
-        payment = json.loads(self.request('/api/payments', {'plan': 'plus', 'reference': '123456789'}))
-        self.assertEqual(json.loads(self.request('/api/account'))['tier'], 'free')
-        approve = '/api/admin/payments/'+payment['id']+'/approve'
-        with self.assertRaises(urllib.error.HTTPError) as error:
-            self.request(approve, {})
-        self.assertEqual(error.exception.code, 403)
-        self.request(approve, {}, owner=True)
-        self.assertEqual(json.loads(self.request('/api/account'))['tier'], 'plus')
-        with self.assertRaises(urllib.error.HTTPError) as error:
-            self.request(approve, {}, owner=True)
-        self.assertEqual(error.exception.code, 400)
-        with accounts.database() as db:
-            db.execute('UPDATE people SET expires=? WHERE id=?', (time.time()-1, 'google:test'))
-        self.assertEqual(json.loads(self.request('/api/account'))['tier'], 'free')
+        for path, owner in [('/api/payments', False), ('/api/admin/payments/'+('a'*32)+'/approve', True)]:
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                self.request(path, {'plan': 'plus', 'reference': '123456789'}, owner=owner)
+            self.assertEqual(error.exception.code, 410)
+        account = json.loads(self.request('/api/account'))
+        self.assertEqual(account['tier'], 'free')
+        self.assertNotIn('card', account)
 
     def test_signin_signup_pages_and_daily_api_quota(self):
         for path in ('/login', '/signin', '/signup'):
             page = self.request(path)
             self.assertIn(b'/auth-ui.js', page)
             self.assertIn('۳۰ بازی'.encode(), page)
-        self.assertIn(b"location.assign('/auth/google')", self.request('/auth-ui.js'))
+        self.assertIn(b"/auth/google", self.request('/auth-ui.js'))
         self.login_user()
         account = json.loads(self.request('/api/account'))
         self.assertEqual(account['remaining_games'], 30)
@@ -239,14 +232,13 @@ class AccountHTTP(unittest.TestCase):
         with accounts.database() as db:
             db.execute('INSERT INTO oauth VALUES (?,?,?,?)', (accounts.digest('fixture-state'), accounts.digest(token), 'verifier', time.time()+600))
         with patch('accounts.google_profile', return_value={'sub': 'google-id', 'email': 'verified@gmail.com', 'email_verified': True}) as profile:
-            with self.assertRaises(urllib.error.HTTPError):
-                self.request('/auth/google/callback?state=wrong&code=test')
+            self.request('/auth/google/callback?state=wrong&code=test')
             self.assertFalse(profile.called)
             self.request('/auth/google/callback?state=fixture-state&code=test')
             profile.assert_called_once_with('test', 'verifier')
             self.assertEqual(json.loads(self.request('/api/account'))['email'], 'verified@gmail.com')
-            with self.assertRaises(urllib.error.HTTPError):
-                self.request('/auth/google/callback?state=fixture-state&code=test')
+            self.request('/auth/google/callback?state=fixture-state&code=test')
+            self.assertEqual(profile.call_count, 1)
 
 
 if __name__ == '__main__':

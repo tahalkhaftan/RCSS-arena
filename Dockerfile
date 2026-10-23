@@ -19,7 +19,7 @@ COPY --from=native-build /opt/rcss-native /opt/rcss-native
 COPY --from=native-build /source/novnc /opt/novnc
 RUN useradd -m -u 10001 arena && mkdir /app && chown arena:arena /app
 WORKDIR /app
-COPY --chown=arena:arena app.py cloud_app.py accounts.py account_store.py player_rcg.py personal_bridge.py github_api.py runner.py offline_logs.py debug_logs.py dataset.py analysis.py presets.py replay.py live.py performance.py team_build.py build_store.py native_desktop.py native_tunnel.py native_assets.py ./
+COPY --chown=arena:arena app.py cloud_app.py accounts.py billing.py account_store.py player_rcg.py personal_bridge.py github_api.py runner.py offline_logs.py debug_logs.py dataset.py analysis.py presets.py replay.py live.py performance.py team_build.py build_store.py native_desktop.py native_tunnel.py native_assets.py ./
 COPY --chown=arena:arena static ./static
 COPY --from=native-build /sources ./static/native/source
 COPY --chown=arena:arena preset_teams ./preset_teams

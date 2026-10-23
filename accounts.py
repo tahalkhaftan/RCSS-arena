@@ -1,4 +1,4 @@
-"""Server-side identities, quotas and manually verified monthly subscriptions.
+"""Server-side identities, quotas and gateway-verified monthly subscriptions.
 
 Deploy ARENA_ACCOUNT_DB on persistent storage. No Google passwords or payment
 card credentials are collected. Google authorization codes are exchanged only
@@ -24,7 +24,6 @@ from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from pathlib import Path
 
-CARD = '6219861351359095'
 PLANS = {'plus': {'name': 'پلاس', 'price': 30000, 'original_price': 50000, 'max_games': 100},
          'pro': {'name': 'پرو', 'price': 50000, 'original_price': 70000, 'max_games': 500}}
 COOKIE = 'arena_session'
@@ -46,6 +45,7 @@ def database():
                 plan TEXT NOT NULL DEFAULT 'free', expires REAL NOT NULL DEFAULT 0,
                 runs INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, person TEXT NOT NULL, expires REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS auth_destinations (state TEXT PRIMARY KEY, path TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS oauth (state TEXT PRIMARY KEY, session TEXT NOT NULL, verifier TEXT NOT NULL, expires REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS jobs (kind TEXT NOT NULL, id TEXT NOT NULL, person TEXT NOT NULL, PRIMARY KEY(kind,id));
             CREATE TABLE IF NOT EXISTS guest_usage (key TEXT PRIMARY KEY, runs INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0);
@@ -57,6 +57,10 @@ def database():
             CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, person TEXT NOT NULL, plan TEXT NOT NULL,
                 amount INTEGER NOT NULL, reference TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending',
                 created REAL NOT NULL, approved REAL, approved_by TEXT);
+            CREATE TABLE IF NOT EXISTS checkouts (id TEXT PRIMARY KEY, person TEXT NOT NULL,
+                plan TEXT NOT NULL, amount INTEGER NOT NULL, authority TEXT UNIQUE, ref_id TEXT UNIQUE,
+                status TEXT NOT NULL DEFAULT 'creating', created REAL NOT NULL, paid REAL);
+            CREATE INDEX IF NOT EXISTS checkouts_person_time ON checkouts(person,created);
             CREATE TABLE IF NOT EXISTS attempts (key TEXT PRIMARY KEY, count INTEGER NOT NULL, until REAL NOT NULL);
         ''')
         db.execute('INSERT OR IGNORE INTO settings VALUES (?,?)', ('session_secret', secrets.token_hex(32)))
@@ -86,7 +90,7 @@ def cookie_value(h):
 
 
 def set_cookie(h, value, age=2592000):
-    secure = '; Secure' if os.environ.get('ARENA_PUBLIC_URL', '').startswith('https://') else ''
+    secure = '; Secure' if (os.environ.get('ARENA_PUBLIC_URL') or os.environ.get('RENDER_EXTERNAL_URL', '')).startswith('https://') else ''
     h.account_cookie = f'{COOKIE}={value}; Path=/; HttpOnly; SameSite=Lax; Max-Age={age}{secure}'
 
 
@@ -306,9 +310,9 @@ def redirect(h, url):
 
 
 def google_settings():
-    client = os.environ.get('GOOGLE_CLIENT_ID', '')
-    secret = os.environ.get('GOOGLE_CLIENT_SECRET', '')
-    public = os.environ.get('ARENA_PUBLIC_URL', '').rstrip('/')
+    client = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+    secret = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
+    public = (os.environ.get('ARENA_PUBLIC_URL') or os.environ.get('RENDER_EXTERNAL_URL', '')).strip().rstrip('/')
     parsed = urllib.parse.urlparse(public)
     if not client or not secret or not parsed.netloc or (parsed.scheme != 'https' and parsed.hostname not in ('localhost', '127.0.0.1')):
         raise ValueError('ورود گوگل هنوز تنظیم نشده؛ مدیر باید GOOGLE_CLIENT_ID، GOOGLE_CLIENT_SECRET و ARENA_PUBLIC_URL را تنظیم کند.')
@@ -336,13 +340,36 @@ def month_after(timestamp):
     return value.replace(year=year, month=month, day=min(value.day, calendar.monthrange(year, month)[1])).timestamp()
 
 
+def google_ready():
+    try:
+        google_settings()
+        return True
+    except ValueError:
+        return False
+
+
+def auth_destination(value):
+    # Only app-owned purchase routes may survive OAuth; never an external URL.
+    parsed = urllib.parse.urlparse(value)
+    if parsed.scheme or parsed.netloc or parsed.path != '/plans':
+        return '/'
+    plan = urllib.parse.parse_qs(parsed.query).get('plan', [''])[0]
+    return '/plans' + ('?plan=' + plan if plan in PLANS else '')
+
+
 def routes(h):
     path = urllib.parse.urlparse(h.path).path
-    if path in ('/account-ui.js', '/auth-ui.js') and h.command == 'GET':
-        h.send(200, (Path(__file__).parent / 'static' / path.lstrip('/')).read_bytes(), 'application/javascript; charset=utf-8')
+    if path in ('/account-ui.js', '/auth-ui.js', '/plans-ui.js', '/theme.js', '/account-theme.css') and h.command == 'GET':
+        h.send(200, (Path(__file__).parent / 'static' / path.lstrip('/')).read_bytes(), ('text/css' if path.endswith('.css') else 'application/javascript')+'; charset=utf-8')
         return True
     if path in ('/login', '/signin', '/signup') and h.command == 'GET':
         h.send(200, (Path(__file__).parent / 'static/login.html').read_bytes(), 'text/html; charset=utf-8')
+        return True
+    if path == '/plans' and h.command == 'GET':
+        h.send(200, (Path(__file__).parent / 'static/plans.html').read_bytes(), 'text/html; charset=utf-8')
+        return True
+    import billing
+    if billing.handle(h):
         return True
     if path not in ('/api/account', '/auth/google', '/auth/google/callback', '/api/auth/owner', '/api/auth/logout', '/api/payments', '/api/admin/payments') and not path.startswith('/api/admin/payments/'):
         return False
@@ -354,9 +381,9 @@ def routes(h):
                 h.send(403, {'error': 'Cross-origin request rejected'})
                 return True
         if path == '/api/account' and h.command == 'GET':
-            ready = bool(os.environ.get('GOOGLE_CLIENT_ID') and os.environ.get('GOOGLE_CLIENT_SECRET') and os.environ.get('ARENA_PUBLIC_URL'))
+            ready = google_ready()
             h.send(200, {'email': account['email'], 'guest': account['guest'], 'owner': account['owner'],
-                'tier': account['tier'], 'expires': account['expires'], **quota_status(account), 'plans': PLANS, 'card': CARD, 'google_ready': ready})
+                'tier': account['tier'], 'expires': account['expires'], **quota_status(account), 'plans': PLANS, 'google_ready': ready, 'billing_ready': billing.configured()})
         elif path == '/auth/google' and h.command == 'GET':
             client, _, callback = google_settings()
             state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
@@ -367,6 +394,8 @@ def routes(h):
             with database() as db:
                 db.execute('DELETE FROM oauth WHERE expires<?', (time.time(),))
                 db.execute('INSERT INTO oauth VALUES (?,?,?,?)', (digest(state), digest(session), verifier, time.time()+600))
+                destination = auth_destination(urllib.parse.parse_qs(urllib.parse.urlparse(h.path).query).get('next', ['/'])[0])
+                db.execute('INSERT INTO auth_destinations VALUES (?,?)', (digest(state), destination))
             challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')
             redirect(h, 'https://accounts.google.com/o/oauth2/v2/auth?' + urllib.parse.urlencode({
                 'client_id': client, 'redirect_uri': callback, 'response_type': 'code', 'scope': 'openid email profile',
@@ -379,6 +408,9 @@ def routes(h):
                 saved = db.execute('SELECT * FROM oauth WHERE state=? AND session=? AND expires>?', (digest(state), digest(cookie_value(h)), time.time())).fetchone()
                 if not saved:
                     raise ValueError('درخواست ورود منقضی یا نامعتبر است؛ دوباره وارد شو.')
+                destination = db.execute('SELECT path FROM auth_destinations WHERE state=?', (digest(state),)).fetchone()
+                destination = auth_destination(destination[0]) if destination else '/'
+                db.execute('DELETE FROM auth_destinations WHERE state=?', (digest(state),))
                 db.execute('DELETE FROM oauth WHERE state=?', (digest(state),))
             if 'error' in query:
                 redirect(h, '/login?cancelled=1')
@@ -392,7 +424,7 @@ def routes(h):
                     db.execute('UPDATE jobs SET person=? WHERE person=?', (person, account['id']))
                 db.execute('DELETE FROM sessions WHERE token=?', (digest(cookie_value(h)),))
                 new_session(h, db, person)
-            redirect(h, '/?signed_in=1')
+            redirect(h, destination if destination != '/' else '/?signed_in=1')
         elif path == '/api/auth/owner' and h.command == 'POST':
             data = json_body(h)
             with database() as db:
@@ -425,54 +457,20 @@ def routes(h):
             with database() as db:
                 rows = db.execute('SELECT id,plan,amount,reference,status,created FROM payments WHERE person=? ORDER BY created DESC LIMIT 50', (account['id'],)).fetchall()
             h.send(200, [dict(r) for r in rows])
-        elif path == '/api/payments' and h.command == 'POST':
-            if account['guest']:
-                h.send(401, {'error': 'اول با حساب گوگل وارد شو.'})
-                return True
-            data = json_body(h)
-            plan, reference = data.get('plan'), str(data.get('reference', '')).strip()
-            if plan not in PLANS or not re.fullmatch(r'[0-9۰-۹]{6,40}', reference):
-                raise ValueError('اشتراک و شمارهٔ پیگیری معتبر پرداخت را وارد کن.')
-            reference = reference.translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹', '0123456789'))
-            ident = secrets.token_hex(16)
-            with database() as db:
-                pending = db.execute("SELECT COUNT(*) FROM payments WHERE person=? AND status='pending'", (account['id'],)).fetchone()[0]
-                if pending >= 3:
-                    raise ValueError('درخواست پرداخت در انتظار تأیید داری؛ منتظر بررسی مدیر بمان.')
-                db.execute('INSERT INTO payments(id,person,plan,amount,reference,created) VALUES (?,?,?,?,?,?)', (ident, account['id'], plan, PLANS[plan]['price'], reference, time.time()))
-            h.send(202, {'id': ident, 'status': 'pending', 'message': 'پس از بررسی واریز توسط مدیر، اشتراک یک‌ماهه فعال می‌شود.'})
-        elif path.startswith('/api/admin/payments'):
-            if not account['owner']:
-                h.send(403, {'error': 'Owner access required'})
-                return True
-            if path == '/api/admin/payments' and h.command == 'GET':
-                with database() as db:
-                    rows = db.execute("SELECT payments.*,people.email FROM payments JOIN people ON people.id=payments.person WHERE status='pending' ORDER BY created LIMIT 100").fetchall()
-                h.send(200, [dict(r) for r in rows])
-            else:
-                match = re.fullmatch(r'/api/admin/payments/([a-f0-9]{32})/(approve|reject)', path)
-                if not match or h.command != 'POST':
-                    h.send(404, {'error': 'Not found'})
-                    return True
-                with database() as db:
-                    db.execute('BEGIN IMMEDIATE')
-                    payment = db.execute('SELECT * FROM payments WHERE id=?', (match[1],)).fetchone()
-                    if not payment or payment['status'] != 'pending':
-                        raise ValueError('درخواست قبلاً بررسی شده یا موجود نیست.')
-                    if match[2] == 'approve':
-                        current = db.execute('SELECT plan,expires FROM people WHERE id=?', (payment['person'],)).fetchone()
-                        if current['expires'] > time.time() and current['plan'] != payment['plan']:
-                            raise ValueError('اشتراک متفاوت هنوز فعال است؛ برای تغییر پلن تا پایان دوره صبر کن.')
-                        expires = month_after(max(time.time(), current['expires']))
-                        db.execute('UPDATE people SET plan=?,expires=? WHERE id=?', (payment['plan'], expires, payment['person']))
-                    db.execute('UPDATE payments SET status=?,approved=?,approved_by=? WHERE id=?', ('approved' if match[2] == 'approve' else 'rejected', time.time(), account['id'], payment['id']))
-                h.send(200, {'ok': True})
+        elif path == '/api/payments' and h.command == 'POST' or path.startswith('/api/admin/payments'):
+            h.send(410, {'error': 'پرداخت دستی حذف شده است؛ از صفحهٔ خرید پلن استفاده کن.'})
         else:
             h.send(405, {'error': 'Method not allowed'})
     except sqlite3.IntegrityError:
         h.send(409, {'error': 'این شمارهٔ پیگیری قبلاً ثبت شده است.'})
     except ValueError as exc:
-        h.send(400, {'error': str(exc)})
+        if path.startswith('/auth/google'):
+            redirect(h, '/login?error=google_unavailable')
+        else:
+            h.send(400, {'error': str(exc)})
     except (OSError, KeyError):
-        h.send(502, {'error': 'ارتباط ورود برقرار نشد؛ دوباره امتحان کن.'})
+        if path.startswith('/auth/google'):
+            redirect(h, '/login?error=google_failed')
+        else:
+            h.send(502, {'error': 'ارتباط برقرار نشد؛ دوباره امتحان کن.'})
     return True

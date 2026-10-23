@@ -3,6 +3,9 @@
  const el=id=>document.getElementById(id);
  const google=el('googleLogin');
  let ready=false,redirecting=false;
+ const query=new URLSearchParams(location.search),rawNext=query.get('next')||'';
+ const returnTo=/^\/plans(?:\?plan=(?:plus|pro))?$/.test(rawNext)?rawNext:'';
+ const authHref=path=>path+(returnTo?'?next='+encodeURIComponent(returnTo):'');
  function modeForPath(){return location.pathname==='/signup'?'signup':'signin';}
  function renderMode(mode){
   const signup=mode==='signup';
@@ -16,7 +19,8 @@
   el('switchText').textContent=signup?'قبلاً حساب ساختی؟':'هنوز حساب نداری؟';
   const link=el('switchLink');
   link.textContent=signup?'وارد شو':'ثبت‌نام کن';
-  link.href=signup?'/login':'/signup';
+  link.href=authHref(signup?'/login':'/signup');
+  el('signInTab').href=authHref('/login');el('signUpTab').href=authHref('/signup');
   link.dataset.authMode=signup?'signin':'signup';
  }
  document.querySelectorAll('[data-auth-mode]').forEach(link=>link.addEventListener('click',event=>{
@@ -27,7 +31,8 @@
  }));
  window.addEventListener('popstate',()=>renderMode(modeForPath()));
  renderMode(modeForPath());
- if(new URLSearchParams(location.search).has('cancelled'))el('message').textContent='ورود لغو شد. دوباره امتحان کن.';
+ if(query.has('error'))el('message').textContent='ورود انجام نشد. دوباره امتحان کن.';
+ if(query.has('cancelled'))el('message').textContent='ورود لغو شد. دوباره امتحان کن.';
  async function checkGoogle(){
   try{
    const response=await fetch('/api/account',{credentials:'same-origin'});
@@ -35,14 +40,14 @@
    const account=await response.json();
    ready=account.google_ready===true;
    google.disabled=!ready;
-   if(!ready)el('message').textContent='ورود گوگل هنوز تنظیم نشده است.';
+   if(!ready)el('message').textContent='ورود گوگل فعلاً در دسترس نیست.';
   }catch(error){el('message').textContent=error.message;google.disabled=true;}
  }
  google.addEventListener('click',()=>{
   if(!ready||redirecting)return;
   redirecting=true;google.disabled=true;google.classList.add('is-loading');
   google.setAttribute('aria-busy','true');el('googleLabel').textContent='در حال اتصال به گوگل…';
-  location.assign('/auth/google');
+  location.assign(returnTo?'/auth/google?next='+encodeURIComponent(returnTo):'/auth/google');
  });
  window.addEventListener('pageshow',event=>{if(event.persisted){redirecting=false;google.classList.remove('is-loading');google.removeAttribute('aria-busy');renderMode(modeForPath());checkGoogle();}});
  el('ownerForm').addEventListener('submit',async event=>{

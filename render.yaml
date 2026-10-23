@@ -27,3 +27,5 @@ services:
         sync: false
       - key: ARENA_OWNER_EMAIL
         sync: false
+      - key: ZARINPAL_MERCHANT_ID
+        sync: false

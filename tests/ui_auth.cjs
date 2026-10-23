@@ -32,6 +32,6 @@ async function setup(path,ready=true){
  unavailable.el('googleLogin').click();
  assert.equal(unavailable.el('googleLogin').disabled,true);
  assert.deepEqual(unavailable.assigned,[],'unconfigured OAuth never pretends to log in');
- assert.match(unavailable.el('message').textContent,/تنظیم نشده/);
+ assert.match(unavailable.el('message').textContent,/دسترس نیست/);
  console.log('PASS: sign-in/sign-up navigation, back button, real Google redirect and unavailable OAuth state');
 })().catch(error=>{console.error(error);process.exitCode=1;});

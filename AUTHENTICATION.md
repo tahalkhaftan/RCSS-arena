@@ -58,10 +58,9 @@ Origin header. Secrets stay on the server.
 
 ## Plans and payment
 
-All prices are **tomans**, and each approved purchase lasts one calendar month
-from activation. Renewing the same plan extends it by another month. A different
-plan cannot be approved while the existing plan is active; no silent downgrade
-or conversion of purchased days occurs.
+All prices are **tomans**, and each verified purchase lasts one calendar month
+from activation. Renewing the same plan extends it by another month. Pro upgrades preserve existing paid days. Active Pro accounts can renew Pro;
+downgrades are not offered during the active period.
 
 | Plan | Original price | Current price | Requests | Games per request | Files |
 | --- | --- | --- | --- | --- | --- |
@@ -84,15 +83,47 @@ matches) consume their allowance. A request split over multiple rounds still
 counts every game. `/api/account` reports remaining games, the window length
 and the next release time for consumed quota.
 
-Payments are manual card transfers to **6219861351359095**. The site displays
-the recipient card; it does not initiate a transfer or claim to verify a bank
-transaction. A signed-in user submits the transfer reference and chosen plan.
-The price is taken from server configuration, not the browser. The owner sees
-pending requests in the account panel and must reconcile the reference and
-amount with an actual bank receipt before approving. Only owner approval
-activates the subscription. Duplicate references and repeated approvals are
-rejected. Rejection does not activate a plan. No bank API or payment gateway
-is configured by this change.
+Payments use Zarinpal REST v4. Configure `ZARINPAL_MERCHANT_ID` from the
+site owner's own gateway account. Without a registered gateway account and
+merchant ID, online purchase is unavailable; the site never simulates a paid
+subscription. Settlement is managed in the owner's gateway account. No recipient
+card number is displayed or returned in public API responses.
+
+`POST /api/billing/checkout` creates a durable order for the signed-in user with
+server-selected plan and price. The website shows prices in tomans. Requests
+and verification both send the stored price multiplied by 10 in IRR. The gateway
+returns an authority bound to that order. The browser is then directed to the
+provider's HTTPS checkout. No card credentials are collected by Arena.
+
+`GET /billing/callback` treats all browser parameters as untrusted. Status=OK
+alone cannot activate an account: the server verifies the stored authority and
+amount directly with the gateway, accepting verified codes 100/101 with a valid
+reference. The entitlement update and paid transition occur in one transaction.
+Repeating or concurrently replaying the callback cannot extend a subscription
+twice. Failed/cancelled/unverified requests never grant a plan. A callback may be
+retried if storage or network publication was interrupted. Payment references
+are unique; a reference cannot activate two different orders. Legacy receipt
+submission and owner approval endpoints are disabled (410), preserving existing
+records only for audit.
+
+Renewals extend existing time by one calendar month. Upgrading Plus to Pro
+preserves remaining paid days and adds the purchased month. Active Pro cannot
+start a downgrade purchase. A late already-paid Plus order cannot downgrade Pro;
+its purchased time is added while retaining the higher level.
+
+The settings dialog contains Usage, Plans, and Appearance/Language. `/plans`
+is the separate purchase page; depleted free allowance suggests Plus and Plus
+suggests Pro. Auth and purchase pages read the same `arena-theme` preference
+as the main page, including cross-tab updates.
+
+Google login still requires the owner's `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` and a matching authorized redirect URI. The server accepts
+`RENDER_EXTERNAL_URL` as the public-origin fallback. Only a safe `/plans` return
+path survives Google login; arbitrary external redirects are rejected. Owner-only
+`/api/setup` reports readiness, missing variable names and the exact Google
+callback URL, without exposing credential values.
+
+Gateway reference: https://www.zarinpal.com/docs/paymentGateway/connectToGateway
 
 ## Files and ownership
 
