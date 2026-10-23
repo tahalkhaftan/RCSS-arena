@@ -17,3 +17,13 @@ services:
         value: tahalkhaftan/RCSS-arena-data
       - key: GITHUB_REF
         value: main
+      - key: ARENA_ACCOUNTS_STORE
+        value: github
+      - key: ARENA_PUBLIC_URL
+        value: https://rcss-arena-public.onrender.com
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ARENA_OWNER_EMAIL
+        sync: false

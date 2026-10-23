@@ -13,6 +13,7 @@ from replay import asset_name,encode_replay
 import tempfile,zipfile
 from live import connection_info,valid_token,RELAY,VIEWERS
 import re
+import accounts
 from personal_bridge import BRIDGE,handle_worker,proxy,worker_token
 LOCK=threading.Lock();CACHE={}
 REPLAY_LOCK=threading.Lock();REPLAY_CACHE={}
@@ -89,6 +90,7 @@ def state(gh,ident,workflow=None):
 class Handler(BaseHandler):
     def do_GET(self):
         path=urlparse(self.path).path
+        if accounts.routes(self):return
         if handle_worker(self):return
         from native_desktop import handle as handle_native
         if handle_native(self):return
@@ -125,7 +127,7 @@ class Handler(BaseHandler):
             if path=='/api/tests':
                 rels=gh.json('/releases?per_page=100');rows=[]
                 for rel in rels:
-                    if is_arena_release(rel):
+                    if is_arena_release(rel) and accounts.owns(self.account,'tests',rel['id']):
                         rows.append({'id':str(rel['id']),'status':'unknown','started_at':rel['created_at']})
                 return self.send(200,rows)
             build_match=re.fullmatch(r'/api/tests/(\d+)/build-log/(left|right)',path)
@@ -163,11 +165,7 @@ class Handler(BaseHandler):
             if not asset:return self.send(409,{'error':'ZIP is not ready'})
             # Stream archive instead of retaining it on Render or in RAM.
             with gh.open('/releases/assets/'+str(asset['id']),binary=True) as response:
-                self.send_response(200);self.send_header('Content-Type','application/zip');self.send_header('Content-Length',str(asset['size']));self.send_header('Content-Disposition','attachment; filename="rcss-logs.zip"');self.end_headers()
-                while True:
-                    chunk=response.read(65536)
-                    if not chunk:break
-                    self.wfile.write(chunk)
+                accounts.send_archive(self,response,asset['size'])
         except urllib.error.HTTPError as e:self.send(502,{'error':'GitHub API: '+str(e.code)})
         except Exception as e:self.send(400,{'error':str(e)})
     def stream_live(self,ident):
@@ -191,6 +189,7 @@ class Handler(BaseHandler):
 
     def do_POST(self):
         path=urlparse(self.path).path
+        if accounts.routes(self):return
         if handle_worker(self):return
         from native_desktop import handle as handle_native
         if handle_native(self):return
@@ -211,6 +210,7 @@ class Handler(BaseHandler):
         path=urlparse(self.path).path
         if path=='/api/personal/pair':return self.send(200,dict(BRIDGE.status(),token=worker_token()))
         if path.startswith('/personal/api/'):return proxy(self,path[len('/personal'):])
+        ticket=None
         try:
             workflow=GitHub();gh=storage_client();gh.require_private();m=re.fullmatch(r'/api/tests/(\d+)/cancel',path)
             if m:
@@ -239,6 +239,7 @@ class Handler(BaseHandler):
                 rel=gh.json('/releases','POST',{'tag_name':tag,'name':tag,'draft':True,'body':json.dumps({'build_state':info},ensure_ascii=False)})
                 ident=rel['id']
                 try:
+                    accounts.bind(self.account,'builds',ident)
                     gh.put(ident,'source.zip',blob,'application/zip')
                     workflow.json('/actions/workflows/build-team.yml/dispatches','POST',{'ref':os.environ.get('GITHUB_REF','main'),'inputs':{'release_id':str(ident)}})
                 except Exception:
@@ -246,6 +247,7 @@ class Handler(BaseHandler):
                 return self.send(202,{'id':str(ident)})
             for side in ('left','right'):
                 if config.get(side,{}).get('input_mode')=='source':
+                    if not accounts.owns(self.account,'builds',config[side].get('build_id','')):raise ValueError('Team build not found')
                     config[side],fields[side+'_file']=compiled_team(gh,config[side])
             teams=resolve_teams(config,fields)
             config=validate(config)
@@ -254,10 +256,12 @@ class Handler(BaseHandler):
             with LOCK:
                 runs=workflow.json('/actions/workflows/matches.yml/runs?per_page=100')['workflow_runs']
                 if any(r['status'] in ('queued','in_progress','waiting','pending','requested') for r in runs):return self.send(409,{'error':'A test is already active'})
+                ticket=accounts.reserve(self,config)
                 tag='arena-'+uuid.uuid4().hex
                 rel=gh.json('/releases','POST',{'tag_name':tag,'name':tag,'draft':True})
                 ident=rel['id']
                 try:
+                    accounts.bind(self.account,'tests',ident)
                     for side in ('left','right'):gh.put(ident,side+'.zip',teams[side])
                     gh.put(ident,'config.json',json.dumps(config).encode(),'application/json')
                     connection=connection_info(ident)
@@ -265,9 +269,14 @@ class Handler(BaseHandler):
                     workflow.json('/actions/workflows/matches.yml/dispatches','POST',{'ref':os.environ.get('GITHUB_REF','main'),'inputs':{'release_id':str(ident)}})
                 except Exception:
                     gh.json('/releases/'+str(ident),'DELETE');raise
+            accounts.accepted(ticket);ticket=None
             self.send(202,{'id':str(ident)})
-        except urllib.error.HTTPError as e:self.send(502,{'error':'GitHub API: '+str(e.code)+'; check token permissions and workflow on default branch'})
-        except Exception as e:self.send(400,{'error':str(e)})
+        except urllib.error.HTTPError as e:
+            accounts.finish(ticket,False)
+            self.send(502,{'error':'GitHub API: '+str(e.code)+'; check token permissions and workflow on default branch'})
+        except Exception as e:
+            accounts.finish(ticket,False)
+            self.send(400,{'error':str(e)})
 
 if __name__=='__main__':
     ThreadingHTTPServer(('0.0.0.0',int(os.environ.get('PORT','8000'))),Handler).serve_forever()

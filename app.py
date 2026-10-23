@@ -1,7 +1,4 @@
 """Private single-user RCSS portal. Python standard library only."""
-import base64
-import hashlib
-import hmac
 import io
 import json
 import os
@@ -19,6 +16,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 from runner import run_job,results_only
+import accounts
+from player_rcg import selection
 
 DATA=Path(os.environ.get('DATA_DIR','./data')).resolve(); DATA.mkdir(parents=True,exist_ok=True)
 JOBS={}; LOCK=threading.RLock()
@@ -91,6 +90,7 @@ def extract(blob,dest):
                 raise ValueError('Unsafe/missing ZIP symlink target: '+str(target.relative_to(dest)))
 
 def validate(c):
+    c['player_rcg']=selection(c.get('player_rcg'))
     for key in ('rounds','games_per_round'):
         if type(c.get(key)) is not int or not 1<=c[key]<=500: raise ValueError('Invalid match counts')
     if c['rounds']*c['games_per_round']>500: raise ValueError('Maximum 500 matches')
@@ -121,21 +121,22 @@ class Handler(BaseHTTPRequestHandler):
     def send(self,code,data=None,ctype='application/json'):
         body=json.dumps(data,ensure_ascii=False).encode() if ctype=='application/json' else data
         self.send_response(code); self.send_header('Content-Type',ctype); self.send_header('Content-Length',str(len(body))); self.send_header('Cache-Control','no-store'); self.send_header('X-Content-Type-Options','nosniff'); self.end_headers(); self.wfile.write(body)
+    def end_headers(self):
+        if getattr(self,'account_cookie',None):
+            self.send_header('Set-Cookie',self.account_cookie)
+            self.account_cookie=None
+        super().end_headers()
     def auth(self):
-        user=os.environ.get('ARENA_USER'); password=os.environ.get('ARENA_PASSWORD')
-        if not user or not password: self.send(503,{'error':'Configure ARENA_USER and ARENA_PASSWORD'}); return False
-        expected='Basic '+base64.b64encode((user+':'+password).encode()).decode()
-        if not hmac.compare_digest(self.headers.get('Authorization','').encode(),expected.encode()):
-            self.send_response(401); self.send_header('WWW-Authenticate','Basic realm="RCSS Arena", charset="UTF-8"'); self.send_header('Content-Length','0'); self.end_headers(); return False
-        return True
+        return accounts.authorize(self)
     def do_GET(self):
         path=urlparse(self.path).path
+        if accounts.routes(self):return
         if path=='/healthz': self.send(200,{'ok':True,'version':'2026.10.05.2','commit':os.environ.get('RENDER_GIT_COMMIT','')}); return
         if not self.auth(): return
         if path in ('/','/index.html'):
             self.send(200,(Path(__file__).parent/'static/index.html').read_bytes(),'text/html; charset=utf-8'); return
         if path=='/api/tests':
-            with LOCK: self.send(200,[{'id':k,'status':v['state']['status'],'total':v['state']['total'],'started_at':v['state']['started_at']} for k,v in JOBS.items()]); return
+            with LOCK: self.send(200,[{'id':k,'status':v['state']['status'],'total':v['state']['total'],'started_at':v['state']['started_at']} for k,v in JOBS.items() if accounts.owns(self.account,'tests',k)]); return
         build_match=re.fullmatch(r'/api/tests/([a-f0-9]{32})/build-log/(left|right)',path)
         if build_match:
             job=JOBS.get(build_match[1])
@@ -150,9 +151,9 @@ class Handler(BaseHTTPRequestHandler):
         else:
             p=job['root']/'logs.zip'
             if not p.exists(): self.send(409,{'error':'Archive is not ready'}); return
-            self.send_response(200); self.send_header('Content-Type','application/zip'); self.send_header('Content-Length',str(p.stat().st_size)); self.send_header('Content-Disposition','attachment; filename="rcss-logs.zip"'); self.end_headers()
-            with p.open('rb') as f: shutil.copyfileobj(f,self.wfile)
+            with p.open('rb') as f: accounts.send_archive(self,f,p.stat().st_size)
     def do_POST(self):
+        if accounts.routes(self):return
         if not self.auth(): return
         origin=self.headers.get('Origin')
         # No cross-site uploads/control. Serve UI and API from the same origin.
@@ -163,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
             if m[1] not in JOBS: self.send(404,{'error':'Not found'}); return
             JOBS[m[1]]['cancel'].set(); self.send(202,{'status':'cancellation_requested'}); return
         if path!='/api/tests': self.send(404,{'error':'Not found'}); return
-        root=None
+        root=None;ticket=None
         try:
             length=int(self.headers.get('Content-Length','0'))
             if length<=0: self.send(413,{'error':'Empty upload'}); return
@@ -182,14 +183,19 @@ class Handler(BaseHTTPRequestHandler):
                 for side in ('left','right'):
                     dest=root/'teams'/side; extract(fields[side+'_file'],dest)
                     if config[side].get('input_mode','binary')=='binary' and not (dest/config[side]['directory']).is_dir(): raise ValueError('Team folder not found: '+side)
+                ticket=accounts.reserve(self,config)
+                accounts.bind(self.account,'tests',ident)
                 state={'id':ident,'demo':False,'status':'queued','server_version':'19.0.0','config':config,'total':config['rounds']*config['games_per_round'],'started_at':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'matches':[],'archive_ready':False}
                 job={'state':state,'root':root,'cancel':threading.Event()}; JOBS[ident]=job; write(job)
                 t=threading.Thread(target=run_job,args=(job,write),daemon=True); job['thread']=t;t.start()
+            accounts.accepted(ticket);ticket=None
             self.send(202,{'id':ident})
         except (ValueError,KeyError,zipfile.BadZipFile,UnicodeError) as exc:
+            accounts.finish(ticket,False)
             if root: shutil.rmtree(root,ignore_errors=True)
             self.send(400,{'error':str(exc)})
         except Exception:
+            accounts.finish(ticket,False)
             if root and root.name not in JOBS: shutil.rmtree(root,ignore_errors=True)
             self.send(500,{'error':'Internal error; check service logs'})
 

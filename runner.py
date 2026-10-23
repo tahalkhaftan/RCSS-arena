@@ -15,6 +15,8 @@ from team_build import build_team,BuildCancelled
 from replay import show_frame,encode_replay,monitor_parameters
 from offline_logs import prepare_team
 from dataset import export_dataset
+from player_rcg import export_players
+from accounts import allowed_export
 
 def results_only(value):
     """Copy results without the separate monitor/replay position data."""
@@ -278,6 +280,8 @@ def run_job(job,write):
                     try:entry['dataset']=export_dataset(source_folder,config,state.get('id','local'),r,g)
                     except Exception as exc:entry['dataset']={'status':'failed','warnings':['CSV generation: '+str(exc)]}
                 if (source_folder/'match.rcg').exists():
+                    try:entry['player_rcg_files']=export_players(source_folder/'match.rcg',config)
+                    except Exception as exc:entry['player_rcg_error']=str(exc)
                     try:entry['performance']=analyze_performance(source_folder/'match.rcg')
                     except Exception as exc:entry['performance']['error']=str(exc)
                     try:
@@ -300,6 +304,6 @@ def run_job(job,write):
             archive.write(root/'results.json','results.json')
             if (root/'logs').exists():
                 for p in (root/'logs').rglob('*'):
-                    if p.is_file() and not p.is_symlink(): archive.write(p,str(p.relative_to(root)))
+                    if p.is_file() and not p.is_symlink() and allowed_export(str(p),config.get('export_tier','owner')): archive.write(p,str(p.relative_to(root)))
         tmp.replace(root/'logs.zip')
         state['archive_ready']=True; write(job)

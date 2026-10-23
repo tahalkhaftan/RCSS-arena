@@ -47,7 +47,7 @@ class Prebuild(unittest.TestCase):
         for name,content in [('config',json.dumps(config).encode()),('right_file',b'binary')]:
             parts.append(b'--fixture\r\nContent-Disposition: form-data; name="'+name.encode()+b'"\r\n\r\n'+content+b'\r\n')
         payload=b''.join(parts)+b'--fixture--\r\n'
-        handler=Handler.__new__(Handler);handler.path='/api/tests';handler.headers={'Content-Length':str(len(payload)),'Content-Type':'multipart/form-data; boundary='+boundary};handler.rfile=io.BytesIO(payload);handler.auth=lambda:True
+        handler=Handler.__new__(Handler);handler.path='/api/tests';handler.headers={'Content-Length':str(len(payload)),'Content-Type':'multipart/form-data; boundary='+boundary};handler.rfile=io.BytesIO(payload);handler.auth=lambda:True;handler.account={'id':'owner','tier':'owner','owner':True,'guest':False}
         sent=[];handler.send=lambda *args:sent.append(args)
         class Storage:
             uploads={}
